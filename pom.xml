@@ -72,6 +72,13 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- Spring Boot 自定义 Starter 依赖 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-aop</artifactId>
+                <version>${spring-boot.version}</version>
+            </dependency>
+
             <!-- 避免编写冗余的 Java 样板代码，如 get、set 等 -->
             <dependency>
                 <groupId>org.projectlombok</groupId>
@@ -83,6 +90,11 @@
             <dependency>
                 <groupId>com.hanserwei</groupId>
                 <artifactId>hannote-common</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-spring-boot-starter-biz-operationlog</artifactId>
                 <version>${revision}</version>
             </dependency>
         </dependencies>

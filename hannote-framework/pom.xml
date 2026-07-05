@@ -17,5 +17,36 @@
 
     <modules>
         <module>hannote-common</module>
+        <module>hannote-spring-boot-starter-biz-operationlog</module>
     </modules>
+
+    <!-- 继承父 pom 的依赖管理 -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Boot 官方依赖管理 - 必须在其他依赖之前导入 -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-common</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-spring-boot-starter-biz-operationlog</artifactId>
+                <version>${revision}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 </project>
