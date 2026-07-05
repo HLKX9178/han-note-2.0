@@ -18,6 +18,7 @@
 
     <!-- 子模块管理 -->
     <modules>
+        <module>hannote-framework</module>
         <module>hannote-auth</module>
     </modules>
 
@@ -76,6 +77,13 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
+            </dependency>
+
+            <!-- hannote 内部模块 -->
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-common</artifactId>
+                <version>${revision}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
