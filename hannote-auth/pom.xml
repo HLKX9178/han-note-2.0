@@ -45,11 +45,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- MyBatis-Plus (Spring Boot 4.x starter)，写死版本（不在 Spring Boot BOM 中） -->
+        <!-- MyBatis-Plus (Spring Boot 4.x starter)，版本由父 pom 的 mybatis-plus-bom 管理 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
-            <version>3.5.16</version>
         </dependency>
 
         <!-- PostgreSQL 驱动（版本优先由 BOM 管理） -->
