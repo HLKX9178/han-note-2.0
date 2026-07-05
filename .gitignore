@@ -40,3 +40,6 @@ build/
 
 .flattened-pom.xml
 logs/
+
+# 含真实连接信息的 dev 配置，不进 git（提交 .example 模板即可）
+application-dev.yml

@@ -1,0 +1,20 @@
+# 复制为 application-dev.yml 并通过环境变量提供真实值（该真实文件已被 .gitignore 忽略）
+# 需要的环境变量：DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 60000
+      idle-timeout: 300000
+      max-lifetime: 900000
+      pool-name: HannoteHikariPool
+
+logging:
+  level:
+    com.hanserwei.auth.domain.mapper: debug
