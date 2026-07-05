@@ -1,14 +1,17 @@
+### Maven ###
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-.kotlin
+.flattened-pom.xml
 
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+### Build output ###
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### IntelliJ IDEA (ignore entirely — .idea/dataSources* holds DB connection info) ###
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -28,18 +31,21 @@ target/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
 ### VS Code ###
 .vscode/
 
-### Mac OS ###
+### Kotlin ###
+.kotlin
+
+### macOS ###
 .DS_Store
 
-.flattened-pom.xml
+### Runtime logs ###
 logs/
 
-# 含真实连接信息的 dev 配置，不进 git（提交 .example 模板即可）
+### Local dev config with real connection info (commit the .example template instead) ###
 application-dev.yml
+
+### superpowers workflow scratch (ledger, task briefs, reports) ###
+.superpowers/
