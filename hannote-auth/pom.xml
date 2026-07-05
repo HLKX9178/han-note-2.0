@@ -17,6 +17,15 @@
     <description>hannote 认证服务：负责用户登录、注册、账号注销等。作者：Hanserwei</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-biz-operationlog</artifactId>
+        </dependency>
+
         <!-- Web 服务 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
