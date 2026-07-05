@@ -72,13 +72,6 @@
                 <scope>import</scope>
             </dependency>
 
-            <!-- Spring Boot 自定义 Starter 依赖 -->
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-aop</artifactId>
-                <version>${spring-boot.version}</version>
-            </dependency>
-
             <!-- 避免编写冗余的 Java 样板代码，如 get、set 等 -->
             <dependency>
                 <groupId>org.projectlombok</groupId>
