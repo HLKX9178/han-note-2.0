@@ -1,0 +1,49 @@
+### hannote 用户服务 接口测试（IntelliJ HTTP Client）
+# 使用方式：
+#   1. 右上角选择环境：gateway（经网关 8000，需登录）
+#   2. 先执行 hannote-auth.http 的登录接口拿到 {{token}}，更新接口会自动带上
+#   3. 修改用户信息接口需要 JWT 认证，不带 token 会被网关拦截 401
+#
+# 变量（http-client.env.json）：
+#   {{userHost}}     经网关=http://localhost:8000
+#   {{userBasePath}} 经网关=/user
+#   {{token}}        由 hannote-auth.http 登录接口写入的全局变量
+
+### 修改用户信息（经网关，带 JWT，表单 + 头像图片）
+POST {{userHost}}{{userBasePath}}/user/update
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="nickname"
+
+测试昵称
+--WebAppBoundary
+Content-Disposition: form-data; name="avatar"; filename="sample.png"
+Content-Type: image/png
+
+< ./resources/sample.png
+--WebAppBoundary--
+
+> {%
+    client.test("请求成功", function() {
+        client.assert(response.status === 200, "状态码非 200");
+        client.assert(response.body.success === true, "success 非 true");
+    });
+%}
+
+### 不带 JWT 应被网关拦截 401
+POST {{userHost}}{{userBasePath}}/user/update
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="nickname"
+
+无令牌
+--WebAppBoundary--
+
+> {%
+    client.test("未授权被拦截", function() {
+        client.assert(response.status === 401, "状态码非 401");
+    });
+%}

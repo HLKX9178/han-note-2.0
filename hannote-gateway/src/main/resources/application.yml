@@ -27,6 +27,12 @@ spring:
                 - Path=/oss/**
               filters:
                 - StripPrefix=1
+            - id: hannote-user
+              uri: lb://hannote-user
+              predicates:
+                - Path=/user/**
+              filters:
+                - StripPrefix=1
       # 开启基于服务发现的动态路由（可选，按需保留）
       discovery:
         locator:
