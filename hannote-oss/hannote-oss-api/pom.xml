@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote-oss</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-oss-api</artifactId>
+    <packaging>jar</packaging>
+
+    <name>${project.artifactId}</name>
+    <description>对象存储服务 API 层：供其他服务调用的 Feign 接口与 DTO（占位）。作者：Hanserwei</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
