@@ -29,6 +29,19 @@
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- MultipartFile 类型判断（切面对文件上传入参做脱敏）；由使用方 web 服务提供 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- ServletRequest/Response 类型判断；由使用方 web 容器提供 -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
