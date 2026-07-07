@@ -1,0 +1,56 @@
+### hannote 对象存储服务 接口测试（IntelliJ HTTP Client）
+# 使用方式：
+#   1. 右上角选择环境：gateway（经网关 8000，需登录）或 auth-direct（直连 oss 8081）
+#   2. 经网关时：先执行 hannote-auth.http 的登录接口拿到 {{token}}，上传接口会自动带上
+#   3. 直连 oss 时：oss 服务本身不校验 JWT，可直接上传（网关才做鉴权）
+#   4. 上传的样本文件位于 ./resources/ 目录，可自行替换
+#
+# 变量（http-client.env.json）：
+#   {{ossHost}}     经网关=http://localhost:8000，直连=http://localhost:8081
+#   {{ossBasePath}} 经网关=/oss，直连=""
+#   {{token}}       由 hannote-auth.http 登录接口写入的全局变量
+
+### 1. 上传文件（PNG）—— 经网关需带 JWT
+POST {{ossHost}}{{ossBasePath}}/file/upload
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="sample.png"
+Content-Type: image/png
+
+< ./resources/sample.png
+--WebAppBoundary--
+
+> {%
+    client.test("上传成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data != null, "未返回访问 URL");
+    });
+    if (response.body.success && response.body.data) {
+        client.global.set("lastUploadedUrl", response.body.data);
+        client.log("上传后的访问地址：" + response.body.data);
+    }
+%}
+
+### 2. 访问刚上传的文件（校验 URL 可访问）
+GET {{lastUploadedUrl}}
+
+> {%
+    client.test("文件可访问", function () {
+        client.assert(response.status === 200, "文件不可访问，状态：" + response.status);
+    });
+%}
+
+### 3. 经网关上传但不带 JWT —— 预期被网关拦截 401
+# 仅在 gateway 环境下有意义；直连 oss(8081) 时 oss 不鉴权，会返回 200
+POST {{ossHost}}{{ossBasePath}}/file/upload
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="sample.png"
+Content-Type: image/png
+
+< ./resources/sample.png
+--WebAppBoundary--
