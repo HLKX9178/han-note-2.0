@@ -1,6 +1,12 @@
 # 复制为 application-dev.yml 并通过环境变量提供真实值（该真实文件已被 .gitignore 忽略）
-# 需要的环境变量：DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD REDIS_HOST REDIS_PORT REDIS_PASSWORD
+# 需要的环境变量：DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD REDIS_HOST REDIS_PORT REDIS_PASSWORD NACOS_HOST NACOS_PORT
 spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_HOST}:${NACOS_PORT}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
