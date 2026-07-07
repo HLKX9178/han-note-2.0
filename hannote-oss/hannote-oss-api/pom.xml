@@ -14,12 +14,19 @@
     <packaging>jar</packaging>
 
     <name>${project.artifactId}</name>
-    <description>对象存储服务 API 层：供其他服务调用的 Feign 接口与 DTO（占位）。作者：Hanserwei</description>
+    <description>对象存储服务 API 层：供其他服务调用的 HTTP Interface 契约与常量。作者：Hanserwei</description>
 
     <dependencies>
         <dependency>
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-common</artifactId>
+        </dependency>
+
+        <!-- HTTP Interface 契约所需（@HttpExchange / Resource）；消费方 web 服务已具备 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
