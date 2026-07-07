@@ -71,7 +71,7 @@ public class UserDO {
     private LocalDateTime updateTime;
 
     /** 逻辑删除标志（false：未删除 true：已删除），对应列 is_deleted */
-    @TableLogic
+    @TableLogic(value = "false", delval = "true")
     @TableField("is_deleted")
     private Boolean deleted;
 }
