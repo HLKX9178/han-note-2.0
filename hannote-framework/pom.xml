@@ -19,6 +19,7 @@
         <module>hannote-common</module>
         <module>hannote-spring-boot-starter-biz-operationlog</module>
         <module>hannote-spring-boot-starter-biz-context</module>
+        <module>hannote-spring-boot-starter-rpc</module>
     </modules>
 
 </project>

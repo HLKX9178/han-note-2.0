@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote-framework</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-spring-boot-starter-rpc</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>hannote 自定义 starter：服务间调用（HTTP Interface + LoadBalancer，替代 OpenFeign）。作者：Hanserwei</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+        <!-- 拿 LoginUserContextHolder -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
+        </dependency>
+
+        <!-- RestClient / HTTP Interface（Spring Framework 7 核心）；消费方 web 服务已具备 -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- 负载均衡：提供 lb:// 解析与拦截器 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -192,6 +192,11 @@
             </dependency>
             <dependency>
                 <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-spring-boot-starter-rpc</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hanserwei</groupId>
                 <artifactId>hannote-oss-api</artifactId>
                 <version>${revision}</version>
             </dependency>
