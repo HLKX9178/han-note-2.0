@@ -52,4 +52,5 @@ application-dev.yml
 
 ### Qoder CLI local workspace (plans, session cache) ###
 .qoder/
+.agents/
 skills-lock.json
