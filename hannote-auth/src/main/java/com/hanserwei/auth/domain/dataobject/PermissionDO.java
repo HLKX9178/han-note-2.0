@@ -10,13 +10,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * 用户表数据对象.
+ * 权限表数据对象.
  *
- * <p>对应数据表 {@code t_user}，存储小憨书 APP 用户的基础信息、账号凭据与状态信息。
+ * <p>对应数据表 {@code t_permission}，支持目录、菜单、按钮三种权限类型，
+ * 通过 {@code parentId} 构建权限树。
  *
  * @author hanserwei
  * @date 2026/07/07
@@ -26,43 +26,36 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("t_user")
-public class UserDO {
+@TableName("t_permission")
+public class PermissionDO {
 
     /** 主键 ID */
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 小憨书号（全局唯一凭证，系统自增生成） */
-    @TableField("hannote_id")
-    private String hannoteId;
+    /** 父 ID（用于构建权限树，根节点为 0） */
+    private Long parentId;
 
-    /** 密码（BCrypt 加密后存储，验证码登录时为空） */
-    private String password;
+    /** 权限名称 */
+    private String name;
 
-    /** 昵称（新用户默认为：小憨薯 + hannoteId） */
-    private String nickname;
+    /** 类型（1：目录 2：菜单 3：按钮） */
+    private Integer type;
 
-    /** 头像 URL */
-    private String avatar;
+    /** 菜单路由（菜单类型时使用） */
+    private String menuUrl;
 
-    /** 生日 */
-    private LocalDate birthday;
+    /** 菜单图标（目录/菜单类型时使用） */
+    private String menuIcon;
 
-    /** 背景图 URL */
-    private String backgroundImg;
+    /** 管理系统中的显示顺序 */
+    private Integer sort;
 
-    /** 手机号（登录账号，唯一） */
-    private String phone;
-
-    /** 性别（0：女 1：男） */
-    private Integer sex;
+    /** 权限唯一标识（如 app:note:publish），供鉴权框架使用 */
+    private String permissionKey;
 
     /** 状态（0：启用 1：禁用） */
     private Integer status;
-
-    /** 个人简介 */
-    private String introduction;
 
     /** 创建时间 */
     private LocalDateTime createTime;

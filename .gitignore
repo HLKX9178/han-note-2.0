@@ -49,3 +49,7 @@ application-dev.yml
 
 ### superpowers workflow scratch (ledger, task briefs, reports) ###
 .superpowers/
+
+### Qoder CLI local workspace (plans, session cache) ###
+.qoder/
+skills-lock.json

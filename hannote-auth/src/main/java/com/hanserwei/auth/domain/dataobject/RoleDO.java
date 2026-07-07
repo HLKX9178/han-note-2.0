@@ -10,13 +10,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * 用户表数据对象.
+ * 角色表数据对象.
  *
- * <p>对应数据表 {@code t_user}，存储小憨书 APP 用户的基础信息、账号凭据与状态信息。
+ * <p>对应数据表 {@code t_role}，定义系统中的角色（如普通用户、管理员等）。
  *
  * @author hanserwei
  * @date 2026/07/07
@@ -26,48 +25,32 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("t_user")
-public class UserDO {
+@TableName("t_role")
+public class RoleDO {
 
     /** 主键 ID */
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 小憨书号（全局唯一凭证，系统自增生成） */
-    @TableField("hannote_id")
-    private String hannoteId;
+    /** 角色名（展示用，如 "普通用户"） */
+    private String roleName;
 
-    /** 密码（BCrypt 加密后存储，验证码登录时为空） */
-    private String password;
-
-    /** 昵称（新用户默认为：小憨薯 + hannoteId） */
-    private String nickname;
-
-    /** 头像 URL */
-    private String avatar;
-
-    /** 生日 */
-    private LocalDate birthday;
-
-    /** 背景图 URL */
-    private String backgroundImg;
-
-    /** 手机号（登录账号，唯一） */
-    private String phone;
-
-    /** 性别（0：女 1：男） */
-    private Integer sex;
+    /** 角色唯一标识（如 common_user），供鉴权框架使用 */
+    private String roleKey;
 
     /** 状态（0：启用 1：禁用） */
     private Integer status;
 
-    /** 个人简介 */
-    private String introduction;
+    /** 管理系统中的显示顺序 */
+    private Integer sort;
+
+    /** 备注 */
+    private String remark;
 
     /** 创建时间 */
     private LocalDateTime createTime;
 
-    /** 更新时间 */
+    /** 最后一次更新时间 */
     private LocalDateTime updateTime;
 
     /** 逻辑删除标志（false：未删除 true：已删除），对应列 is_deleted */

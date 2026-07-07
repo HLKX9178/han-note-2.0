@@ -11,6 +11,17 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+/**
+ * 全局异常处理器.
+ *
+ * <p>统一将业务异常、参数校验异常、未知异常转换为
+ * {@link com.hanserwei.framework.common.response.Response} 结构返回给客户端，
+ * 避免暴露堆栈信息。
+ *
+ * @author hanserwei
+ * @date 2026/07/07
+ * @since 0.0.1
+ */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {

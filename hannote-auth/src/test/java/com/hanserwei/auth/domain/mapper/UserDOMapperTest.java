@@ -1,11 +1,14 @@
 package com.hanserwei.auth.domain.mapper;
 
 import com.hanserwei.auth.domain.dataobject.UserDO;
+import com.hanserwei.framework.common.enums.DeletedEnum;
+import com.hanserwei.framework.common.enums.StatusEnum;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -19,9 +22,14 @@ class UserDOMapperTest {
 
     @Test
     void crud_smoke() {
-        // insert
+        String unique = UUID.randomUUID().toString().replace("-", "").substring(0, 11);
+
         UserDO user = UserDO.builder()
-                .username("hanserwei-test")
+                .phone(unique)
+                .hannoteId("HN-" + unique.substring(0, 6))
+                .nickname("小憨薯" + unique.substring(0, 6))
+                .status(StatusEnum.ENABLE.getValue())
+                .deleted(DeletedEnum.NO.getValue())
                 .createTime(LocalDateTime.now())
                 .updateTime(LocalDateTime.now())
                 .build();
@@ -29,12 +37,10 @@ class UserDOMapperTest {
         assertEquals(1, inserted);
         assertNotNull(user.getId(), "IDENTITY 主键应回填");
 
-        // select
         UserDO found = userDOMapper.selectById(user.getId());
         assertNotNull(found);
-        assertEquals("hanserwei-test", found.getUsername());
+        assertEquals(unique, found.getPhone());
 
-        // delete (cleanup)
         int deleted = userDOMapper.deleteById(user.getId());
         assertTrue(deleted >= 1);
     }
