@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote-user</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-user-biz</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>用户服务业务模块。作者：Hanserwei</description>
+
+    <dependencies>
+        <!-- oss 调用契约 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-oss-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+        <!-- 业务接口日志组件 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-biz-operationlog</artifactId>
+        </dependency>
+        <!-- 登录用户上下文组件 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
+        </dependency>
+        <!-- 服务间调用组件（HTTP Interface + LoadBalancer） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-rpc</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus + PostgreSQL -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- 服务发现 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

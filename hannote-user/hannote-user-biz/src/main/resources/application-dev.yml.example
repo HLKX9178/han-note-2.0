@@ -1,0 +1,25 @@
+# 复制为 application-dev.yml 并填入真实值（真实文件已被 .gitignore 忽略）
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: <NACOS_HOST>:<NACOS_PORT>
+        namespace: hannote
+        group: DEFAULT_GROUP
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://<DB_HOST>:<DB_PORT>/hannote
+    username: <DB_USER>
+    password: <DB_PASSWORD>
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 60000
+      idle-timeout: 300000
+      max-lifetime: 900000
+      pool-name: HannoteHikariPool
+
+logging:
+  level:
+    com.hanserwei.user.domain.mapper: debug
