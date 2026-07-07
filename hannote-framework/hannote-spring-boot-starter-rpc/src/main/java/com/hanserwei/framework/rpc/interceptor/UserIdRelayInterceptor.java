@@ -28,7 +28,7 @@ public class UserIdRelayInterceptor implements ClientHttpRequestInterceptor {
 
     @NonNull
     @Override
-    public ClientHttpResponse intercept(@NonNull HttpRequest request, @NonNull byte[] body,
+    public ClientHttpResponse intercept(@NonNull HttpRequest request, byte @NonNull [] body,
                                         @NonNull ClientHttpRequestExecution execution) throws IOException {
         Long userId = LoginUserContextHolder.getUserId();
         if (Objects.nonNull(userId)) {
