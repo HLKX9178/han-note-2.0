@@ -36,6 +36,11 @@ public final class RedisKeyConstants {
     public static final String ROLE_PERMISSIONS_KEY_PREFIX = "hannote:role:permissions:";
 
     /**
+     * JWT 登出黑名单 Key 前缀
+     */
+    public static final String TOKEN_BLACKLIST_KEY_PREFIX = "hannote:token:blacklist:";
+
+    /**
      * 构建验证码 Key
      *
      * @param phone 手机号
@@ -63,5 +68,18 @@ public final class RedisKeyConstants {
      */
     public static String buildRolePermissionsKey(Long roleId) {
         return ROLE_PERMISSIONS_KEY_PREFIX + roleId;
+    }
+
+    /**
+     * 构建 JWT 黑名单 Key.
+     *
+     * <p>无状态 JWT 无法主动失效，登出时将令牌写入黑名单，
+     * 过期时间对齐令牌剩余有效期，鉴权时命中黑名单即视为无效。
+     *
+     * @param token JWT 字符串
+     * @return hannote:token:blacklist:{token}
+     */
+    public static String buildTokenBlacklistKey(String token) {
+        return TOKEN_BLACKLIST_KEY_PREFIX + token;
     }
 }

@@ -1,0 +1,27 @@
+server:
+  port: 8000
+
+spring:
+  application:
+    name: hannote-gateway
+  profiles:
+    active: dev
+  threads:
+    virtual:
+      enabled: true
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # 路由规则：/auth/** 转发到认证服务，去掉首段前缀
+          routes:
+            - id: hannote-auth
+              uri: lb://hannote-auth
+              predicates:
+                - Path=/auth/**
+              filters:
+                - StripPrefix=1
+      # 开启基于服务发现的动态路由（可选，按需保留）
+      discovery:
+        locator:
+          enabled: false

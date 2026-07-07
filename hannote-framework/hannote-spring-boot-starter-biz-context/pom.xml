@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote-framework</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>hannote 自定义 starter：登录用户上下文透传（网关 Header userId → ThreadLocal）。作者：Hanserwei</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+
+        <!-- Web 过滤器所需 servlet API 与自动配置 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 阿里 TransmittableThreadLocal：解决线程池/异步场景下上下文传递失效 -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>transmittable-thread-local</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

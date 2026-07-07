@@ -1,0 +1,28 @@
+# 复制为 application-dev.yml 并填入真实值（真实文件已被 .gitignore 忽略）
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 101.43.61.11:18848
+        namespace: hannote
+        group: DEFAULT_GROUP
+  data:
+    redis:
+      database: 0
+      host: 101.43.61.11
+      port: 6379
+      password: hanserwei
+      timeout: 5s
+      connect-timeout: 5s
+      lettuce:
+        pool:
+          max-active: 200
+          max-wait: -1ms
+          min-idle: 0
+          max-idle: 10
+
+# JWT 配置（必须与认证服务保持一致，网关据此校验/解析令牌）
+hannote:
+  jwt:
+    secret: qwertyuiopqwertyuiopqwertyuiopqwertyuiop
+    expiration: 2592000

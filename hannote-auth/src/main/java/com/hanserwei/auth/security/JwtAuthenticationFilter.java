@@ -1,5 +1,6 @@
 package com.hanserwei.auth.security;
 
+import com.hanserwei.auth.constant.RedisKeyConstants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -7,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -36,6 +38,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -45,7 +48,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String header = request.getHeader("Authorization");
             if (header != null && header.startsWith("Bearer ")) {
                 String token = header.substring(7);
-                if (jwtTokenProvider.validate(token)) {
+                boolean blacklisted = Boolean.TRUE.equals(
+                        redisTemplate.hasKey(RedisKeyConstants.buildTokenBlacklistKey(token)));
+                if (!blacklisted && jwtTokenProvider.validate(token)) {
                     Long userId = jwtTokenProvider.getUserId(token);
                     String phone = jwtTokenProvider.getPhone(token);
                     List<String> roles = jwtTokenProvider.getRoles(token);

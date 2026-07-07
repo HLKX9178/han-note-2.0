@@ -1,0 +1,117 @@
+### hannote 认证 + 网关 接口测试（IntelliJ HTTP Client）
+# 使用方式：
+#   1. 右上角选择环境：gateway（经网关 8000）或 auth-direct（直连认证服务 8080）
+#   2. 从上往下按顺序执行；登录接口会自动把返回的 JWT 存到全局变量 {{token}}
+#   3. 变量 {{phone}} / {{code}} / {{password}} 在 http-client.env.json 中配置
+#
+# 说明：
+#   - 经网关时路径带 /auth 前缀（网关 StripPrefix=1 后转发给认证服务）
+#   - 直连认证服务时不带 /auth 前缀
+#   - {{basePath}} 由环境决定：gateway="/auth"，auth-direct=""
+
+### 1. 发送短信验证码（白名单，无需登录）
+POST {{host}}{{basePath}}/verification/code/send
+Content-Type: application/json
+
+{
+  "phone": "{{phone}}"
+}
+
+### 2-A. 验证码登录（新用户自动注册）—— 需先把上一步收到的验证码填到 env 的 code
+# 登录成功后自动保存 JWT 到 {{token}}
+POST {{host}}{{basePath}}/user/login
+Content-Type: application/json
+
+{
+  "phone": "{{phone}}",
+  "code": "{{code}}",
+  "type": 1
+}
+
+> {%
+    client.test("登录成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+    if (response.body.success && response.body.data) {
+        client.global.set("token", response.body.data);
+        client.log("已保存 JWT 到 {{token}}");
+    }
+%}
+
+### 2-B. 账号密码登录（需先执行「修改密码」设置过密码）type=2
+POST {{host}}{{basePath}}/user/login
+Content-Type: application/json
+
+{
+  "phone": "{{phone}}",
+  "password": "{{password}}",
+  "type": 2
+}
+
+> {%
+    client.test("密码登录成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+    if (response.body.success && response.body.data) {
+        client.global.set("token", response.body.data);
+    }
+%}
+
+### 3. 修改密码（需登录，携带 {{token}}）
+POST {{host}}{{basePath}}/user/password/update
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "newPassword": "{{password}}"
+}
+
+> {%
+    client.test("改密成功", function () {
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 4. 退出登录（需登录，携带 {{token}}）—— 令牌加入黑名单
+POST {{host}}{{basePath}}/user/logout
+Authorization: Bearer {{token}}
+
+> {%
+    client.test("登出成功", function () {
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 5. 登出后复用同一令牌调用受保护接口 —— 预期被拦截（401）
+# 经网关：网关黑名单拦截返回 GATEWAY-10001
+# 直连认证服务：JwtAuthenticationFilter 查黑名单 → 未认证 → 401 AUTH-20004
+POST {{host}}{{basePath}}/user/password/update
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "newPassword": "{{password}}"
+}
+
+> {%
+    client.test("登出后应被拒绝", function () {
+        client.assert(response.status === 401, "预期 401，实际 " + response.status);
+        client.assert(response.body.success === false, "预期 success=false");
+    });
+%}
+
+### 6. 不带令牌访问受保护接口 —— 预期 401
+POST {{host}}{{basePath}}/user/password/update
+Content-Type: application/json
+
+{
+  "newPassword": "{{password}}"
+}
+
+> {%
+    client.test("无令牌应 401", function () {
+        client.assert(response.status === 401, "预期 401，实际 " + response.status);
+    });
+%}

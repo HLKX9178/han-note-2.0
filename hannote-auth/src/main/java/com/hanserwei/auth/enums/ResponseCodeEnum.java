@@ -30,7 +30,8 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     USER_NOT_FOUND("AUTH-20002", "用户不存在"),
     LOGIN_TYPE_NOT_SUPPORT("AUTH-20003", "暂不支持该登录方式"),
     UNAUTHORIZED("AUTH-20004", "未登录或登录已过期"),
-    ACCOUNT_DISABLED("AUTH-20005", "账号已被禁用");
+    ACCOUNT_DISABLED("AUTH-20005", "账号已被禁用"),
+    PHONE_OR_PASSWORD_ERROR("AUTH-20006", "手机号或密码错误");
 
     private final String errorCode;
     private final String errorMessage;

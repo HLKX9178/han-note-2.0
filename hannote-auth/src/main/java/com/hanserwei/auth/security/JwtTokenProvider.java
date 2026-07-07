@@ -139,6 +139,16 @@ public class JwtTokenProvider {
     }
 
     /**
+     * 获取令牌过期时间.
+     *
+     * @param token JWT 字符串
+     * @return 过期时间
+     */
+    public Date getExpiration(String token) {
+        return parseClaims(token).getExpiration();
+    }
+
+    /**
      * 校验令牌有效性.
      *
      * @param token JWT 字符串

@@ -20,6 +20,7 @@
     <modules>
         <module>hannote-framework</module>
         <module>hannote-auth</module>
+        <module>hannote-gateway</module>
     </modules>
 
     <properties>
@@ -44,6 +45,7 @@
         <jjwt.version>0.13.0</jjwt.version>
         <jackson2.version>2.22.0</jackson2.version>
         <dypnsapi.version>2.0.0</dypnsapi.version>
+        <transmittable-thread-local.version>2.14.5</transmittable-thread-local.version>
 
         <!-- 插件版本 -->
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
@@ -148,6 +150,13 @@
                 <version>${dypnsapi.version}</version>
             </dependency>
 
+            <!-- 阿里 TransmittableThreadLocal：线程池/异步场景下的上下文传递 -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>transmittable-thread-local</artifactId>
+                <version>${transmittable-thread-local.version}</version>
+            </dependency>
+
             <!-- hannote 内部模块 -->
             <dependency>
                 <groupId>com.hanserwei</groupId>
@@ -157,6 +166,11 @@
             <dependency>
                 <groupId>com.hanserwei</groupId>
                 <artifactId>hannote-spring-boot-starter-biz-operationlog</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
                 <version>${revision}</version>
             </dependency>
         </dependencies>

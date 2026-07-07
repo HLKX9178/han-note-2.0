@@ -10,7 +10,9 @@ import com.hanserwei.auth.domain.mapper.UserDOMapper;
 import com.hanserwei.auth.domain.mapper.UserRoleDOMapper;
 import com.hanserwei.auth.enums.LoginTypeEnum;
 import com.hanserwei.auth.enums.ResponseCodeEnum;
+import com.hanserwei.auth.model.vo.user.UpdatePasswordReqVO;
 import com.hanserwei.auth.model.vo.user.UserLoginReqVO;
+import com.hanserwei.auth.security.HannoteUserDetails;
 import com.hanserwei.auth.security.JwtTokenProvider;
 import com.hanserwei.auth.service.UserService;
 import com.hanserwei.framework.common.enums.DeletedEnum;
@@ -22,6 +24,8 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -29,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户业务实现.
@@ -59,6 +64,9 @@ public class UserServiceImpl implements UserService {
     @Resource
     private JwtTokenProvider jwtTokenProvider;
 
+    @Resource
+    private PasswordEncoder passwordEncoder;
+
     /**
      * 登录（新用户自动注册）.
      *
@@ -66,7 +74,7 @@ public class UserServiceImpl implements UserService {
      * <ol>
      *   <li>校验登录类型；</li>
      *   <li>验证码登录：校验验证码 → 未注册则自动注册 → 签发 JWT；</li>
-     *   <li>密码登录：阶段一暂不支持。</li>
+     *   <li>密码登录：校验手机号是否注册 → BCrypt 比对密码 → 签发 JWT。</li>
      * </ol>
      *
      * @param reqVO 登录请求入参
@@ -116,8 +124,22 @@ public class UserServiceImpl implements UserService {
                 break;
 
             case PASSWORD:
-                // 阶段一暂不支持密码登录
-                throw new BizException(ResponseCodeEnum.LOGIN_TYPE_NOT_SUPPORT);
+                String password = reqVO.getPassword();
+                Preconditions.checkArgument(StringUtils.isNotBlank(password), "密码不能为空");
+
+                // 手机号未注册：用户不存在
+                if (Objects.isNull(userDO)) {
+                    throw new BizException(ResponseCodeEnum.USER_NOT_FOUND);
+                }
+
+                // 比对明文密码与库中 BCrypt 密文，不一致则统一提示「手机号或密码错误」
+                if (!passwordEncoder.matches(password, userDO.getPassword())) {
+                    throw new BizException(ResponseCodeEnum.PHONE_OR_PASSWORD_ERROR);
+                }
+
+                userId = userDO.getId();
+                roleKeys = loadRoleKeys(phone);
+                break;
 
             default:
                 throw new BizException(ResponseCodeEnum.LOGIN_TYPE_NOT_SUPPORT);
@@ -126,6 +148,71 @@ public class UserServiceImpl implements UserService {
         // 3. 签发 JWT
         String token = jwtTokenProvider.generateToken(userId, phone, roleKeys);
         return Response.success(token);
+    }
+
+    /**
+     * 修改密码.
+     *
+     * <p>从 Spring Security 上下文获取当前登录用户 ID（由 JWT 认证过滤器写入），
+     * 将新密码 BCrypt 加密后更新到 {@code t_user}。
+     *
+     * @param reqVO 修改密码请求入参
+     * @return 操作结果
+     */
+    @Override
+    public Response<?> updatePassword(UpdatePasswordReqVO reqVO) {
+        // 1. 从上下文获取当前登录用户 ID
+        Long userId = currentUserId();
+
+        // 2. 加密新密码并更新
+        String encodedPassword = passwordEncoder.encode(reqVO.getNewPassword());
+        UserDO userDO = UserDO.builder()
+                .id(userId)
+                .password(encodedPassword)
+                .updateTime(LocalDateTime.now())
+                .build();
+        userDOMapper.updateById(userDO);
+
+        return Response.success();
+    }
+
+    /**
+     * 获取当前登录用户 ID.
+     *
+     * @return 当前用户 ID
+     * @throws BizException 未登录时抛出
+     */
+    /**
+     * 退出登录.
+     *
+     * <p>将当前 JWT 写入 Redis 黑名单，TTL 对齐令牌剩余有效期；令牌已过期则无需处理。
+     *
+     * @param token 当前请求携带的 JWT
+     * @return 操作结果
+     */
+    @Override
+    public Response<?> logout(String token) {
+        if (StringUtils.isBlank(token)) {
+            return Response.success();
+        }
+
+        // 计算令牌剩余有效期，作为黑名单 TTL
+        long ttlMillis = jwtTokenProvider.getExpiration(token).getTime() - System.currentTimeMillis();
+        if (ttlMillis > 0) {
+            String blacklistKey = RedisKeyConstants.buildTokenBlacklistKey(token);
+            redisTemplate.opsForValue().set(blacklistKey, "1", ttlMillis, TimeUnit.MILLISECONDS);
+        }
+
+        log.info("==> 用户退出登录, userId: {}", currentUserId());
+        return Response.success();
+    }
+
+    private Long currentUserId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof HannoteUserDetails userDetails)) {
+            throw new BizException(ResponseCodeEnum.UNAUTHORIZED);
+        }
+        return userDetails.getUserId();
     }
 
     /**
