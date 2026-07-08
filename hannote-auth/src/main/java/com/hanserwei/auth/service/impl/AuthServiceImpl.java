@@ -11,6 +11,7 @@ import com.hanserwei.auth.rpc.UserRpcService;
 import com.hanserwei.auth.security.HannoteUserDetails;
 import com.hanserwei.auth.security.JwtTokenProvider;
 import com.hanserwei.auth.service.AuthService;
+import com.hanserwei.framework.biz.context.holder.LoginUserContextHolder;
 import com.hanserwei.framework.common.exception.BizException;
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
@@ -144,13 +145,17 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public Response<?> updatePassword(UpdatePasswordReqVO reqVO) {
-        // 校验当前登录态（userId 透传由 HeaderUserId2ContextFilter + RPC 拦截器负责）
-        currentUserId();
-
-        String encodedPassword = passwordEncoder.encode(reqVO.getNewPassword());
-        userRpcService.updatePassword(encodedPassword);
-
-        return Response.success();
+        // 从 JWT 上下文取当前登录用户 ID，并写入 RPC 透传上下文
+        // （直连认证服务时无网关注入的 userId 头，需在此显式桥接，JWT 为准）
+        Long userId = currentUserId();
+        LoginUserContextHolder.setUserId(userId);
+        try {
+            String encodedPassword = passwordEncoder.encode(reqVO.getNewPassword());
+            userRpcService.updatePassword(encodedPassword);
+            return Response.success();
+        } finally {
+            LoginUserContextHolder.remove();
+        }
     }
 
     /**
