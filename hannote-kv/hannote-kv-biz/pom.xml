@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote-kv</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-kv-biz</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>KV 键值存储服务业务层：笔记内容增删查（ScyllaDB）实现与启动模块。作者：Hanserwei</description>
+
+    <dependencies>
+        <!-- 本服务对外契约（DTO / HTTP Interface），biz 侧需引用其中的 DTO -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-kv-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+
+        <!-- Web 服务 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 参数校验 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Spring Data Cassandra：对接 ScyllaDB（CQL 协议兼容 Cassandra） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-cassandra</artifactId>
+        </dependency>
+
+        <!-- 服务发现 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,11 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: hannote-kv
+  profiles:
+    active: dev
+  threads:
+    virtual:
+      enabled: true

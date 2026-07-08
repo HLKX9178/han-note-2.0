@@ -1,0 +1,16 @@
+# 复制为 application-dev.yml 并填入真实值（真实文件已被 .gitignore 忽略）
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 101.43.61.11:18848
+        namespace: hannote
+        group: DEFAULT_GROUP
+
+  # ScyllaDB（CQL 协议兼容 Cassandra），由 Spring Boot 自动装配 CqlSession
+  cassandra:
+    keyspace-name: hannote        # 键空间，需预先在 Scylla 建好
+    contact-points: 127.0.0.1     # Scylla 地址
+    port: 9042
+    local-datacenter: datacenter1 # DataStax 驱动 4.x 必填，需与 Scylla 数据中心名一致
+    schema-action: none           # 不自动建表，keyspace/表由 DDL 预建

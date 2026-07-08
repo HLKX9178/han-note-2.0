@@ -23,6 +23,7 @@
         <module>hannote-gateway</module>
         <module>hannote-oss</module>
         <module>hannote-user</module>
+        <module>hannote-kv</module>
     </modules>
 
     <properties>
@@ -204,6 +205,11 @@
             <dependency>
                 <groupId>com.hanserwei</groupId>
                 <artifactId>hannote-user-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-kv-api</artifactId>
                 <version>${revision}</version>
             </dependency>
         </dependencies>
