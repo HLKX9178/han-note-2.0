@@ -1,12 +1,12 @@
-package com.hanserwei.auth.constant;
+package com.hanserwei.user.constant;
 
 /**
  * 角色全局常量.
  *
- * <p>定义系统中所有角色的固定标识，供鉴权、自动注册等流程引用。
+ * <p>定义系统中所有角色的固定标识，供自动注册分配默认角色等流程引用。
  *
  * @author hanserwei
- * @date 2026/07/07
+ * @date 2026/07/08
  * @since 0.0.1
  */
 public final class RoleConstants {

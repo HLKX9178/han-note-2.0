@@ -25,6 +25,21 @@
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-spring-boot-starter-biz-operationlog</artifactId>
         </dependency>
+        <!-- 登录用户上下文组件（HeaderUserId2ContextFilter 写回 userId，供 RPC 出站透传） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
+        </dependency>
+        <!-- 服务间调用组件（HTTP Interface + LoadBalancer） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-rpc</artifactId>
+        </dependency>
+        <!-- 用户服务调用契约 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-user-api</artifactId>
+        </dependency>
 
         <!-- Web 服务 -->
         <dependency>
@@ -43,19 +58,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
-        </dependency>
-
-        <!-- MyBatis-Plus (Spring Boot 4.x starter)，版本由父 pom 的 mybatis-plus-bom 管理 -->
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
-        </dependency>
-
-        <!-- PostgreSQL 驱动（版本优先由 BOM 管理） -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Spring Security -->

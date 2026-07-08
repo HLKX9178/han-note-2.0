@@ -1,12 +1,19 @@
 package com.hanserwei.user.controller;
 
+import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
+import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
+import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
+import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
 import com.hanserwei.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,5 +43,43 @@ public class UserController {
     @PostMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Response<?> updateUserInfo(UpdateUserInfoReqVO updateUserInfoReqVO) {
         return userService.updateUserInfo(updateUserInfoReqVO);
+    }
+
+    // ===================================== 对其他服务提供的接口（仅内网 RPC） =====================================
+
+    /**
+     * 用户注册（供认证服务在自动注册时 RPC 调用）.
+     *
+     * @param registerUserReqDTO 注册入参
+     * @return 用户 ID
+     */
+    @PostMapping("/register")
+    @ApiOperationLog(description = "用户注册")
+    public Response<Long> register(@Validated @RequestBody RegisterUserReqDTO registerUserReqDTO) {
+        return userService.register(registerUserReqDTO);
+    }
+
+    /**
+     * 根据手机号查询用户信息（供认证服务密码登录 RPC 调用）.
+     *
+     * @param findUserByPhoneReqDTO 查询入参
+     * @return 用户信息（含密文密码与角色）
+     */
+    @PostMapping("/findByPhone")
+    @ApiOperationLog(description = "手机号查询用户信息")
+    public Response<FindUserByPhoneRspDTO> findByPhone(@Validated @RequestBody FindUserByPhoneReqDTO findUserByPhoneReqDTO) {
+        return userService.findByPhone(findUserByPhoneReqDTO);
+    }
+
+    /**
+     * 更新密码（供认证服务修改密码 RPC 调用，userId 由请求头透传）.
+     *
+     * @param updateUserPasswordReqDTO 密码更新入参
+     * @return 操作结果
+     */
+    @PostMapping("/password/update")
+    @ApiOperationLog(description = "密码更新")
+    public Response<?> updatePassword(@Validated @RequestBody UpdateUserPasswordReqDTO updateUserPasswordReqDTO) {
+        return userService.updatePassword(updateUserPasswordReqDTO);
     }
 }

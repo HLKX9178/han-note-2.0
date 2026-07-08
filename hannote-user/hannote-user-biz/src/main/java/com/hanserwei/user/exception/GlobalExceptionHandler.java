@@ -5,6 +5,8 @@ import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.user.enums.ResponseCodeEnum;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -36,6 +38,23 @@ public class GlobalExceptionHandler {
     public Response<Object> handleIllegalArgumentException(HttpServletRequest request, IllegalArgumentException e) {
         log.warn("{} request error, errorMessage: {}", request.getRequestURI(), e.getMessage());
         return Response.fail(ResponseCodeEnum.SYSTEM_ERROR.getErrorCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseBody
+    public Response<Object> handleMethodArgumentNotValidException(HttpServletRequest request,
+                                                                  MethodArgumentNotValidException e) {
+        StringBuilder sb = new StringBuilder();
+        BindingResult bindingResult = e.getBindingResult();
+        bindingResult.getFieldErrors().forEach(error ->
+                sb.append(error.getField())
+                        .append(' ')
+                        .append(error.getDefaultMessage())
+                        .append("; "));
+        String errorMessage = sb.toString();
+
+        log.warn("{} request param invalid: {}", request.getRequestURI(), errorMessage);
+        return Response.fail(ResponseCodeEnum.SYSTEM_ERROR.getErrorCode(), errorMessage);
     }
 
     @ExceptionHandler(Exception.class)

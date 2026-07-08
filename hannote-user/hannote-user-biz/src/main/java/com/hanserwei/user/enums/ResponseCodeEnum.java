@@ -25,6 +25,8 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     INTRODUCTION_VALID_FAIL("USER-20004", "个人简介请设置1-100个字符"),
     UPLOAD_AVATAR_FAIL("USER-20005", "头像上传失败"),
     UPLOAD_BACKGROUND_IMG_FAIL("USER-20006", "背景图上传失败"),
+    USER_NOT_FOUND("USER-20007", "用户不存在"),
+    REGISTER_FAIL("USER-20008", "用户注册失败"),
     ;
 
     private final String errorCode;

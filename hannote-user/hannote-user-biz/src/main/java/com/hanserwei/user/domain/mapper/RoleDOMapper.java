@@ -1,7 +1,7 @@
-package com.hanserwei.auth.domain.mapper;
+package com.hanserwei.user.domain.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.hanserwei.auth.domain.dataobject.RoleDO;
+import com.hanserwei.user.domain.dataobject.RoleDO;
 
 import java.util.List;
 
@@ -12,7 +12,7 @@ import java.util.List;
  * 并扩展 {@link #selectEnabledList()} 查询所有启用角色（供启动时同步权限使用）。
  *
  * @author hanserwei
- * @date 2026/07/07
+ * @date 2026/07/08
  * @since 0.0.1
  */
 public interface RoleDOMapper extends BaseMapper<RoleDO> {

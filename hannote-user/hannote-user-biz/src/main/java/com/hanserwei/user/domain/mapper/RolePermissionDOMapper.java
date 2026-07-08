@@ -1,7 +1,7 @@
-package com.hanserwei.auth.domain.mapper;
+package com.hanserwei.user.domain.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.hanserwei.auth.domain.dataobject.RolePermissionDO;
+import com.hanserwei.user.domain.dataobject.RolePermissionDO;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -13,7 +13,7 @@ import java.util.List;
  * 并扩展 {@link #selectByRoleIds(List)} 批量查询指定角色的权限关联。
  *
  * @author hanserwei
- * @date 2026/07/07
+ * @date 2026/07/08
  * @since 0.0.1
  */
 public interface RolePermissionDOMapper extends BaseMapper<RolePermissionDO> {

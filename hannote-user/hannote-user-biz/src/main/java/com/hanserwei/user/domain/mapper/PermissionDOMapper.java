@@ -1,7 +1,7 @@
-package com.hanserwei.auth.domain.mapper;
+package com.hanserwei.user.domain.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.hanserwei.auth.domain.dataobject.PermissionDO;
+import com.hanserwei.user.domain.dataobject.PermissionDO;
 
 import java.util.List;
 
@@ -12,7 +12,7 @@ import java.util.List;
  * 并扩展 {@link #selectAppEnabledList()} 查询 APP 端所有被启用的按钮权限。
  *
  * @author hanserwei
- * @date 2026/07/07
+ * @date 2026/07/08
  * @since 0.0.1
  */
 public interface PermissionDOMapper extends BaseMapper<PermissionDO> {

@@ -1,5 +1,5 @@
 # 复制为 application-dev.yml 并通过环境变量提供真实值（该真实文件已被 .gitignore 忽略）
-# 需要的环境变量：DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD REDIS_HOST REDIS_PORT REDIS_PASSWORD NACOS_HOST NACOS_PORT
+# 需要的环境变量：REDIS_HOST REDIS_PORT REDIS_PASSWORD NACOS_HOST NACOS_PORT
 spring:
   cloud:
     nacos:
@@ -7,19 +7,6 @@ spring:
         server-addr: ${NACOS_HOST}:${NACOS_PORT}
         namespace: ${NACOS_NAMESPACE:public}
         group: ${NACOS_GROUP:DEFAULT_GROUP}
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-    type: com.zaxxer.hikari.HikariDataSource
-    hikari:
-      minimum-idle: 5
-      maximum-pool-size: 20
-      connection-timeout: 60000
-      idle-timeout: 300000
-      max-lifetime: 900000
-      pool-name: HannoteHikariPool
   data:
     redis:
       database: 0
@@ -48,7 +35,3 @@ hannote:
   jwt:
     secret: ${JWT_SECRET}
     expiration: 2592000
-
-logging:
-  level:
-    com.hanserwei.auth.domain.mapper: debug

@@ -5,13 +5,13 @@ import com.hanserwei.auth.model.vo.user.UserLoginReqVO;
 import com.hanserwei.framework.common.response.Response;
 
 /**
- * 用户业务接口.
+ * 认证业务接口.
  *
  * @author hanserwei
  * @date 2026/07/07
  * @since 0.0.1
  */
-public interface UserService {
+public interface AuthService {
 
     /**
      * 登录（新用户自动注册）.
@@ -24,7 +24,7 @@ public interface UserService {
     /**
      * 修改密码.
      *
-     * <p>从当前登录上下文获取用户 ID，将新密码 BCrypt 加密后更新到数据库。
+     * <p>从当前登录上下文获取用户 ID，将新密码 BCrypt 加密后通过 RPC 调用用户服务更新。
      *
      * @param reqVO 修改密码请求入参
      * @return 操作结果

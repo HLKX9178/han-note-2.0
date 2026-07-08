@@ -1,0 +1,55 @@
+package com.hanserwei.user.api;
+
+import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
+import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
+import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
+import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.service.annotation.HttpExchange;
+import org.springframework.web.service.annotation.PostExchange;
+
+/**
+ * 用户服务对外契约（HTTP Interface）.
+ *
+ * <p>供其他服务通过 {@code @ImportHttpServices(group = UserApiConstants.SERVICE_NAME,
+ * types = UserHttpApi.class)} 声明并注入调用。这些接口仅供内网服务间 RPC 使用，
+ * 不经网关对外暴露。
+ *
+ * @author hanserwei
+ * @date 2026/07/08
+ * @since 0.0.1
+ */
+@HttpExchange
+public interface UserHttpApi {
+
+    /** 用户服务上下文前缀（与 UserController 的 @RequestMapping 对齐） */
+    String PREFIX = "/user";
+
+    /**
+     * 用户注册（幂等：手机号已注册则直接返回既有用户 ID）.
+     *
+     * @param registerUserReqDTO 注册入参
+     * @return 用户 ID
+     */
+    @PostExchange(PREFIX + "/register")
+    Response<Long> register(@RequestBody RegisterUserReqDTO registerUserReqDTO);
+
+    /**
+     * 根据手机号查询用户信息（含密文密码与角色标识）.
+     *
+     * @param findUserByPhoneReqDTO 查询入参
+     * @return 用户信息
+     */
+    @PostExchange(PREFIX + "/findByPhone")
+    Response<FindUserByPhoneRspDTO> findByPhone(@RequestBody FindUserByPhoneReqDTO findUserByPhoneReqDTO);
+
+    /**
+     * 更新当前登录用户的密码（userId 由 userId 请求头透传）.
+     *
+     * @param updateUserPasswordReqDTO 密码更新入参
+     * @return 操作结果
+     */
+    @PostExchange(PREFIX + "/password/update")
+    Response<?> updatePassword(@RequestBody UpdateUserPasswordReqDTO updateUserPasswordReqDTO);
+}

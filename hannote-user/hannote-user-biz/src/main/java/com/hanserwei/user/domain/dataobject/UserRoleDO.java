@@ -1,4 +1,4 @@
-package com.hanserwei.auth.domain.dataobject;
+package com.hanserwei.user.domain.dataobject;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -13,30 +13,30 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 角色权限关联表数据对象.
+ * 用户角色关联表数据对象.
  *
- * <p>对应数据表 {@code t_role_permission_rel}，记录角色与权限的 N:N 关系。
+ * <p>对应数据表 {@code t_user_role_rel}，记录用户与角色的 N:N 关系。
  *
  * @author hanserwei
- * @date 2026/07/07
+ * @date 2026/07/08
  * @since 0.0.1
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("t_role_permission_rel")
-public class RolePermissionDO {
+@TableName("t_user_role_rel")
+public class UserRoleDO {
 
     /** 主键 ID */
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 用户 ID */
+    private Long userId;
+
     /** 角色 ID */
     private Long roleId;
-
-    /** 权限 ID */
-    private Long permissionId;
 
     /** 创建时间 */
     private LocalDateTime createTime;

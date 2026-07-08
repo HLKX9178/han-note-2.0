@@ -6,9 +6,10 @@
 
 ```
 http/
-├── http-client.env.json   # 环境变量（gateway / auth-direct 两套）
+├── http-client.env.json   # 环境变量（gateway / auth-direct / user-direct 三套）
 ├── hannote-auth.http      # 认证服务 + 网关鉴权测试
 ├── hannote-oss.http       # 对象存储服务测试
+├── hannote-user.http      # 用户服务测试（资料修改 + 内网 RPC 接口）
 └── resources/             # 测试资源（上传用样本文件等）
     └── sample.png
 ```
@@ -18,6 +19,8 @@ http/
 1. 用 IntelliJ IDEA 打开任一 `.http` 文件，右上角选择运行环境：
    - **gateway**：经网关（`localhost:8000`），验证路由 + JWT 鉴权 + 透传全链路。
    - **auth-direct**：直连各服务（auth `8080` / oss `8081`），只测服务本身。
+   - **user-direct**：直连用户服务（`8082`），测 `register`/`findByPhone`/`password/update` 等**内网 RPC 接口**。
+     这些接口正常由认证服务调用、不经网关；直连时用 `{{userId}}` 变量手动补 `userId` 请求头模拟透传。
 2. 点击请求左侧的 ▶️ 按顺序执行。
 3. `hannote-auth.http` 的登录接口会通过 response handler 把 JWT 写入全局变量 `{{token}}`，
    其他文件（如 `hannote-oss.http`）的受保护接口会自动带上该令牌。

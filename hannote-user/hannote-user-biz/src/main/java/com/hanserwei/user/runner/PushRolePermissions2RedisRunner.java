@@ -1,22 +1,22 @@
-package com.hanserwei.auth.runner;
+package com.hanserwei.user.runner;
 
-import cn.hutool.core.collection.CollUtil;
 import com.google.common.collect.Lists;
-import com.hanserwei.auth.constant.RedisKeyConstants;
-import com.hanserwei.auth.domain.dataobject.PermissionDO;
-import com.hanserwei.auth.domain.dataobject.RoleDO;
-import com.hanserwei.auth.domain.dataobject.RolePermissionDO;
-import com.hanserwei.auth.domain.mapper.PermissionDOMapper;
-import com.hanserwei.auth.domain.mapper.RoleDOMapper;
-import com.hanserwei.auth.domain.mapper.RolePermissionDOMapper;
 import com.hanserwei.framework.common.util.JsonUtils;
-import jakarta.annotation.Resource;
+import com.hanserwei.user.constant.RedisKeyConstants;
+import com.hanserwei.user.domain.dataobject.PermissionDO;
+import com.hanserwei.user.domain.dataobject.RoleDO;
+import com.hanserwei.user.domain.dataobject.RolePermissionDO;
+import com.hanserwei.user.domain.mapper.PermissionDOMapper;
+import com.hanserwei.user.domain.mapper.RoleDOMapper;
+import com.hanserwei.user.domain.mapper.RolePermissionDOMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 /**
  * 启动时同步角色-权限数据到 Redis.
  *
- * <p>实现 {@link ApplicationRunner}，在 Spring Boot 应用启动后执行：
+ * <p>在 Spring Boot 应用启动后执行：
  * <ol>
  *   <li>查询所有启用角色（{@code t_role}）；</li>
  *   <li>按角色 ID 批量查询角色-权限关联（{@code t_role_permission_rel}）；</li>
@@ -38,24 +38,18 @@ import java.util.stream.Collectors;
  * <p>若任意环节失败，仅打印错误日志，不影响服务启动。
  *
  * @author hanserwei
- * @date 2026/07/07
+ * @date 2026/07/08
  * @since 0.0.1
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class PushRolePermissions2RedisRunner implements ApplicationRunner {
 
-    @Resource
-    private RoleDOMapper roleDOMapper;
-
-    @Resource
-    private RolePermissionDOMapper rolePermissionDOMapper;
-
-    @Resource
-    private PermissionDOMapper permissionDOMapper;
-
-    @Resource
-    private RedisTemplate<String, Object> redisTemplate;
+    private final RoleDOMapper roleDOMapper;
+    private final RolePermissionDOMapper rolePermissionDOMapper;
+    private final PermissionDOMapper permissionDOMapper;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     public void run(@NonNull ApplicationArguments args) {
@@ -64,7 +58,7 @@ public class PushRolePermissions2RedisRunner implements ApplicationRunner {
         try {
             // 1. 查询所有启用的角色
             List<RoleDO> roles = roleDOMapper.selectEnabledList();
-            if (CollUtil.isEmpty(roles)) {
+            if (CollectionUtils.isEmpty(roles)) {
                 log.warn("==> 未发现任何启用的角色，跳过同步");
                 return;
             }
