@@ -42,6 +42,16 @@
             <artifactId>cosid-spring-redis</artifactId>
         </dependency>
 
+        <!-- Redis 连接客户端与连接池（cosid-spring-redis 仅带来 spring-data-redis，未带来实际连接客户端） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+
         <!-- 服务发现 -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>

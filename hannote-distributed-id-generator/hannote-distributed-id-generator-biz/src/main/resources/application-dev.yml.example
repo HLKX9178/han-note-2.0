@@ -1,0 +1,18 @@
+# 复制为 application-dev.yml 并填入真实凭据（真实文件已被根 .gitignore 忽略）
+spring:
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: your-redis-password
+      database: 0
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
