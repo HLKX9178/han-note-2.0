@@ -32,7 +32,7 @@ import java.time.LocalDateTime;
 public class UserDO {
 
     /** 主键 ID */
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.INPUT)
     private Long id;
 
     /** 小憨书号（全局唯一凭证，系统自增生成） */

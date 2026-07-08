@@ -16,8 +16,12 @@ public final class RedisKeyConstants {
     }
 
     /**
-     * ID 生成器 Key（全局自增小憨书号）
+     * 小憨书 ID 生成器 KEY.
+     *
+     * @deprecated 已迁移至分布式 ID 生成服务（hannote-distributed-id-generator），
+     * 注册逻辑改为经 RPC 调用生成，不再使用 Redis increment。
      */
+    @Deprecated
     public static final String HANNOTE_ID_GENERATOR = "hannote:id_generator";
 
     /**

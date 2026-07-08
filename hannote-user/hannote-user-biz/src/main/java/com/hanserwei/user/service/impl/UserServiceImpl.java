@@ -24,6 +24,7 @@ import com.hanserwei.user.domain.mapper.UserRoleDOMapper;
 import com.hanserwei.user.enums.ResponseCodeEnum;
 import com.hanserwei.user.enums.SexEnum;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
+import com.hanserwei.user.rpc.DistributedIdRpcService;
 import com.hanserwei.user.rpc.OssRpcService;
 import com.hanserwei.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,7 @@ public class UserServiceImpl implements UserService {
     private final UserRoleDOMapper userRoleDOMapper;
     private final RoleDOMapper roleDOMapper;
     private final OssRpcService ossRpcService;
+    private final DistributedIdRpcService distributedIdRpcService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final TransactionTemplate transactionTemplate;
 
@@ -156,12 +158,17 @@ public class UserServiceImpl implements UserService {
         // 编程式事务保证：入库用户 + 分配角色 的原子性
         Long userId = transactionTemplate.execute(status -> {
             try {
-                // 1. 全局自增的小憨书 ID
-                Long hannoteId = redisTemplate.opsForValue().increment(RedisKeyConstants.HANNOTE_ID_GENERATOR);
+                // 1. RPC: 调用分布式 ID 服务生成小憨书 ID
+                Long hannoteId = distributedIdRpcService.generateHannoteId();
                 Preconditions.checkNotNull(hannoteId, "小憨书 ID 生成失败");
 
-                // 2. 入库用户
+                // 2. RPC: 调用分布式 ID 服务生成用户 ID
+                Long newUserId = distributedIdRpcService.generateUserId();
+                Preconditions.checkNotNull(newUserId, "用户 ID 生成失败");
+
+                // 3. 入库用户（显式指定主键 ID）
                 UserDO userDO = UserDO.builder()
+                        .id(newUserId)
                         .phone(phone)
                         .hannoteId(String.valueOf(hannoteId))
                         .nickname("小憨薯" + hannoteId)
@@ -172,9 +179,7 @@ public class UserServiceImpl implements UserService {
                         .build();
                 userDOMapper.insert(userDO);
 
-                Long newUserId = userDO.getId();
-
-                // 3. 分配普通用户角色
+                // 4. 分配普通用户角色
                 UserRoleDO userRoleDO = UserRoleDO.builder()
                         .userId(newUserId)
                         .roleId(RoleConstants.COMMON_USER_ROLE_ID)

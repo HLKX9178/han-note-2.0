@@ -21,6 +21,11 @@
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-oss-api</artifactId>
         </dependency>
+        <!-- 分布式 ID 生成服务调用契约 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-distributed-id-generator-api</artifactId>
+        </dependency>
         <!-- 本服务对外契约（DTO / HTTP Interface），biz 侧需引用其中的 DTO -->
         <dependency>
             <groupId>com.hanserwei</groupId>
