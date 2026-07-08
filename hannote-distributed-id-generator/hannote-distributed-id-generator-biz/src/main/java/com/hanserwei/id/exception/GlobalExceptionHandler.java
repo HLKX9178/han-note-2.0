@@ -28,6 +28,23 @@ public class GlobalExceptionHandler {
         return Response.fail(e);
     }
 
+    /**
+     * 处理分布式 ID 提供者配置缺失异常（CoSId 抛出）.
+     *
+     * <p>当请求的 ID 生成器名称未被正确配置时，CoSId 的 IdGeneratorProvider.getRequired(name)
+     * 会抛出 IllegalArgumentException，映射至 ID_GENERATE_FAIL 错误码。
+     *
+     * @param request HTTP 请求
+     * @param e       异常实例
+     * @return 统一响应结构，包含 ID-20000 错误码
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseBody
+    public Response<Object> handleIllegalArgumentException(HttpServletRequest request, IllegalArgumentException e) {
+        log.warn("==> {} request error, errorMessage: {}", request.getRequestURI(), e.getMessage());
+        return Response.fail(ResponseCodeEnum.ID_GENERATE_FAIL);
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseBody
     public Response<Object> handleOtherException(HttpServletRequest request, Exception e) {
