@@ -3,7 +3,6 @@ package com.hanserwei.note.domain.dataobject;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -77,9 +76,4 @@ public class NoteDO {
 
     /** 笔记内容 UUID（关联 ScyllaDB note_content.id；正文为空时为空串） */
     private String contentUuid;
-
-    /** 逻辑删除标志（false：未删除 true：已删除），对应列 is_deleted */
-    @TableLogic(value = "false", delval = "true")
-    @TableField("is_deleted")
-    private Boolean deleted;
 }

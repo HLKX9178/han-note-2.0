@@ -182,3 +182,86 @@ userId: 999999
         client.assert(response.body.errorCode === "NOTE-20006", "预期 NOTE-20006，实际 " + response.body.errorCode);
     });
 %}
+
+### 10. 笔记置顶 —— 环境 note-direct
+# 仅作者本人可操作，userId 必须等于该笔记 creatorId，否则返回 NOTE-20006
+POST {{noteHost}}{{noteBasePath}}/note/top
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}},
+  "isTop": true
+}
+
+> {%
+    client.test("置顶成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 11. 取消置顶 —— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/top
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}},
+  "isTop": false
+}
+
+> {%
+    client.test("取消置顶成功", function () {
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 12. 笔记仅对自己可见 —— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/visible/onlyme
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("改为仅自己可见成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 13. 笔记删除（逻辑删除，status=2）—— 环境 note-direct
+# 仅作者本人可删，userId 必须等于该笔记 creatorId
+POST {{noteHost}}{{noteBasePath}}/note/delete
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("删除成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 14. 删除他人笔记应返回 NOTE-20006 —— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/delete
+Content-Type: application/json
+userId: 999999
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("越权删除被拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "NOTE-20006", "预期 NOTE-20006，实际 " + response.body.errorCode);
+    });
+%}

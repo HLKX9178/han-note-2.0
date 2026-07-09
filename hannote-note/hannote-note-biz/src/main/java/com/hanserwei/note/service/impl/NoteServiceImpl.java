@@ -9,6 +9,7 @@ import com.hanserwei.framework.biz.context.holder.LoginUserContextHolder;
 import com.hanserwei.framework.common.exception.BizException;
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.framework.common.util.JsonUtils;
+import com.hanserwei.note.constant.MQConstants;
 import com.hanserwei.note.constant.RedisKeyConstants;
 import com.hanserwei.note.domain.dataobject.NoteDO;
 import com.hanserwei.note.domain.dataobject.TopicDO;
@@ -18,10 +19,13 @@ import com.hanserwei.note.enums.NoteStatusEnum;
 import com.hanserwei.note.enums.NoteTypeEnum;
 import com.hanserwei.note.enums.NoteVisibleEnum;
 import com.hanserwei.note.enums.ResponseCodeEnum;
+import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
+import com.hanserwei.note.model.vo.TopNoteReqVO;
 import com.hanserwei.note.model.vo.UpdateNoteReqVO;
+import com.hanserwei.note.model.vo.UpdateNoteVisibleOnlyMeReqVO;
 import com.hanserwei.note.rpc.DistributedIdRpcService;
 import com.hanserwei.note.rpc.KeyValueRpcService;
 import com.hanserwei.note.rpc.UserRpcService;
@@ -31,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +68,7 @@ public class NoteServiceImpl implements NoteService {
     private final KeyValueRpcService keyValueRpcService;
     private final UserRpcService userRpcService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RocketMQTemplate rocketMQTemplate;
     /** 笔记服务异步执行器（虚拟线程，见 AsyncConfig） */
     private final ExecutorService noteTaskExecutor;
 
@@ -277,7 +283,11 @@ public class NoteServiceImpl implements NoteService {
             contentUuid = UUID.randomUUID().toString();
         }
 
-        // 6. 更新笔记元数据（显式 set，含 null 覆盖，切换类型时清空另一媒体字段）
+        // 6. 一致性：延迟双删第一步——先删 Redis 缓存，再更新库（配合下方延时二次删）
+        String noteDetailRedisKey = RedisKeyConstants.buildNoteDetailKey(noteId);
+        redisTemplate.delete(noteDetailRedisKey);
+
+        // 7. 更新笔记元数据（显式 set，含 null 覆盖，切换类型时清空另一媒体字段）
         LambdaUpdateWrapper<NoteDO> updateWrapper = new LambdaUpdateWrapper<NoteDO>()
                 .eq(NoteDO::getId, noteId)
                 .set(NoteDO::getTitle, updateNoteReqVO.getTitle())
@@ -290,10 +300,6 @@ public class NoteServiceImpl implements NoteService {
                 .set(NoteDO::getContentUuid, isContentEmpty ? "" : contentUuid)
                 .set(NoteDO::getUpdateTime, LocalDateTime.now());
         noteDOMapper.update(null, updateWrapper);
-
-        // 7. 删除缓存（后续详情查询会重建；先删缓存避免脏读）
-        redisTemplate.delete(RedisKeyConstants.buildNoteDetailKey(noteId));
-        LOCAL_CACHE.invalidate(noteId);
 
         // 8. 更新 KV 笔记正文：空则删除，非空则保存；失败抛异常回滚事务
         boolean contentUpdated;
@@ -308,7 +314,128 @@ public class NoteServiceImpl implements NoteService {
             throw new BizException(ResponseCodeEnum.NOTE_UPDATE_FAIL);
         }
 
+        // 9. 广播 MQ：通知所有实例删除各自 L1 本地缓存
+        broadcastDeleteLocalCache(noteId);
+
+        // 10. 一致性：延迟双删第二步——异步发送延时消息，约 1s 后二次删 Redis 缓存
+        //     用 RocketMQ 5.x timer message（任意精度），替代 4.x 固定 18 级 delayLevel
+        noteTaskExecutor.execute(() -> {
+            try {
+                rocketMQTemplate.syncSendDelayTimeSeconds(
+                        MQConstants.TOPIC_DELAY_DELETE_NOTE_REDIS_CACHE,
+                        String.valueOf(noteId), 1);
+                log.info("==> MQ：延时删除 Redis 笔记缓存消息发送成功, noteId: {}", noteId);
+            } catch (Exception e) {
+                log.error("==> MQ：延时删除 Redis 笔记缓存消息发送失败, noteId: {}", noteId, e);
+            }
+        });
+
         return Response.success();
+    }
+
+    @Override
+    public void deleteNoteLocalCache(Long noteId) {
+        LOCAL_CACHE.invalidate(noteId);
+        log.info("==> 已删除笔记本地缓存, noteId: {}", noteId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Response<?> deleteNote(DeleteNoteReqVO deleteNoteReqVO) {
+        Long noteId = deleteNoteReqVO.getId();
+        Long currentUserId = LoginUserContextHolder.getUserId();
+
+        // 逻辑删除：status 置为 2（DELETED）；带归属条件，仅作者本人可删
+        LambdaUpdateWrapper<NoteDO> updateWrapper = new LambdaUpdateWrapper<NoteDO>()
+                .eq(NoteDO::getId, noteId)
+                .eq(NoteDO::getCreatorId, currentUserId)
+                .set(NoteDO::getStatus, NoteStatusEnum.DELETED.getCode())
+                .set(NoteDO::getUpdateTime, LocalDateTime.now());
+        int count = noteDOMapper.update(null, updateWrapper);
+
+        // 影响行数为 0：笔记不存在或非本人（越权）
+        if (count == 0) {
+            throw new BizException(ResponseCodeEnum.NOTE_CANT_OPERATE);
+        }
+
+        // 删 Redis 缓存 + 广播删各实例 L1
+        redisTemplate.delete(RedisKeyConstants.buildNoteDetailKey(noteId));
+        broadcastDeleteLocalCache(noteId);
+
+        return Response.success();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Response<?> visibleOnlyMe(UpdateNoteVisibleOnlyMeReqVO updateNoteVisibleOnlyMeReqVO) {
+        Long noteId = updateNoteVisibleOnlyMeReqVO.getId();
+        Long currentUserId = LoginUserContextHolder.getUserId();
+
+        // 可见性置为仅自己可见；仅更新正常展示（status=NORMAL）且本人的笔记
+        LambdaUpdateWrapper<NoteDO> updateWrapper = new LambdaUpdateWrapper<NoteDO>()
+                .eq(NoteDO::getId, noteId)
+                .eq(NoteDO::getCreatorId, currentUserId)
+                .eq(NoteDO::getStatus, NoteStatusEnum.NORMAL.getCode())
+                .set(NoteDO::getVisible, NoteVisibleEnum.PRIVATE.getCode())
+                .set(NoteDO::getUpdateTime, LocalDateTime.now());
+        int count = noteDOMapper.update(null, updateWrapper);
+
+        if (count == 0) {
+            throw new BizException(ResponseCodeEnum.NOTE_CANT_VISIBLE_ONLY_ME);
+        }
+
+        // 删 Redis 缓存 + 广播删各实例 L1
+        redisTemplate.delete(RedisKeyConstants.buildNoteDetailKey(noteId));
+        broadcastDeleteLocalCache(noteId);
+
+        return Response.success();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Response<?> topNote(TopNoteReqVO topNoteReqVO) {
+        Long noteId = topNoteReqVO.getId();
+        Boolean isTop = topNoteReqVO.getIsTop();
+        Long currentUserId = LoginUserContextHolder.getUserId();
+
+        // 置顶 / 取消置顶；带归属条件，仅作者本人可操作
+        LambdaUpdateWrapper<NoteDO> updateWrapper = new LambdaUpdateWrapper<NoteDO>()
+                .eq(NoteDO::getId, noteId)
+                .eq(NoteDO::getCreatorId, currentUserId)
+                .set(NoteDO::getTop, isTop)
+                .set(NoteDO::getUpdateTime, LocalDateTime.now());
+        int count = noteDOMapper.update(null, updateWrapper);
+
+        if (count == 0) {
+            throw new BizException(ResponseCodeEnum.NOTE_CANT_OPERATE);
+        }
+
+        // 删 Redis 缓存 + 广播删各实例 L1
+        redisTemplate.delete(RedisKeyConstants.buildNoteDetailKey(noteId));
+        broadcastDeleteLocalCache(noteId);
+
+        return Response.success();
+    }
+
+    /**
+     * 删除笔记 L1 本地缓存：本实例直接删（保证），并广播通知其它实例删（尽力而为）.
+     *
+     * <p>广播为纯缓存清理，属最终一致性尽力操作：即便 MQ 不可用也不应回滚业务写入，
+     * 故发送失败仅记录日志、不抛异常。本实例的 L1 已在此直接删除，其它实例在 MQ 恢复前
+     * 由各自的写后 TTL（1h）兜底。
+     *
+     * @param noteId 笔记 ID
+     */
+    private void broadcastDeleteLocalCache(Long noteId) {
+        // 本实例 L1 直接失效（不依赖 MQ，保证本机一致）
+        LOCAL_CACHE.invalidate(noteId);
+        // 广播通知其它实例失效（尽力而为，失败不影响业务）
+        try {
+            rocketMQTemplate.syncSend(MQConstants.TOPIC_DELETE_NOTE_LOCAL_CACHE, String.valueOf(noteId));
+            log.info("==> MQ：广播删除笔记本地缓存消息发送成功, noteId: {}", noteId);
+        } catch (Exception e) {
+            log.error("==> MQ：广播删除笔记本地缓存消息发送失败（本机 L1 已删，其它实例靠 TTL 兜底）, noteId: {}", noteId, e);
+        }
     }
 
     /**

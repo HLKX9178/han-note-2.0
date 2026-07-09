@@ -30,6 +30,19 @@ spring:
           min-idle: 0
           max-idle: 10
 
+# RocketMQ（广播删本地缓存 + 延迟双删 Redis 缓存）
+rocketmq:
+  name-server: <rocketmq-name-server>     # 如 127.0.0.1:9876
+  producer:
+    group: hannote_group
+    send-message-timeout: 3000            # 消息发送超时时间（毫秒）
+    retry-times-when-send-failed: 3       # 同步发送失败重试次数
+    retry-times-when-send-async-failed: 3 # 异步发送失败重试次数
+    max-message-size: 4096                # 消息最大大小（字节）
+  consumer:
+    group: hannote_group
+    pull-batch-size: 5                    # 每次拉取的最大消息数
+
 logging:
   level:
     com.hanserwei.note.domain.mapper: debug

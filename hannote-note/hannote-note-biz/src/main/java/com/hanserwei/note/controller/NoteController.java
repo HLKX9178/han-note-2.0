@@ -2,10 +2,13 @@ package com.hanserwei.note.controller;
 
 import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
+import com.hanserwei.note.model.vo.TopNoteReqVO;
 import com.hanserwei.note.model.vo.UpdateNoteReqVO;
+import com.hanserwei.note.model.vo.UpdateNoteVisibleOnlyMeReqVO;
 import com.hanserwei.note.service.NoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,5 +69,41 @@ public class NoteController {
     @ApiOperationLog(description = "笔记修改")
     public Response<?> updateNote(@Validated @RequestBody UpdateNoteReqVO updateNoteReqVO) {
         return noteService.updateNote(updateNoteReqVO);
+    }
+
+    /**
+     * 笔记删除（逻辑删除，仅作者本人可删）.
+     *
+     * @param deleteNoteReqVO 删除入参
+     * @return 操作结果
+     */
+    @PostMapping("/delete")
+    @ApiOperationLog(description = "删除笔记")
+    public Response<?> deleteNote(@Validated @RequestBody DeleteNoteReqVO deleteNoteReqVO) {
+        return noteService.deleteNote(deleteNoteReqVO);
+    }
+
+    /**
+     * 笔记仅对自己可见（仅作者本人可改）.
+     *
+     * @param updateNoteVisibleOnlyMeReqVO 入参
+     * @return 操作结果
+     */
+    @PostMapping("/visible/onlyme")
+    @ApiOperationLog(description = "笔记仅对自己可见")
+    public Response<?> visibleOnlyMe(@Validated @RequestBody UpdateNoteVisibleOnlyMeReqVO updateNoteVisibleOnlyMeReqVO) {
+        return noteService.visibleOnlyMe(updateNoteVisibleOnlyMeReqVO);
+    }
+
+    /**
+     * 笔记置顶 / 取消置顶（仅作者本人可操作）.
+     *
+     * @param topNoteReqVO 入参
+     * @return 操作结果
+     */
+    @PostMapping("/top")
+    @ApiOperationLog(description = "置顶/取消置顶笔记")
+    public Response<?> topNote(@Validated @RequestBody TopNoteReqVO topNoteReqVO) {
+        return noteService.topNote(topNoteReqVO);
     }
 }

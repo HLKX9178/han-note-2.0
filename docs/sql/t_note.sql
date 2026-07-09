@@ -15,8 +15,7 @@ CREATE TABLE IF NOT EXISTS t_note (
     visible           SMALLINT      DEFAULT 0,
     status            SMALLINT      NOT NULL DEFAULT 0,
     create_time       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_deleted        BOOLEAN       NOT NULL DEFAULT FALSE
+    update_time       TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 COMMENT ON TABLE  t_note                    IS '笔记表';
@@ -34,11 +33,13 @@ COMMENT ON COLUMN t_note.visible            IS '可见范围（0：公开 1：�
 COMMENT ON COLUMN t_note.status             IS '状态（0：待审核 1：正常展示 2：被删除 3：被下架）';
 COMMENT ON COLUMN t_note.create_time        IS '创建时间';
 COMMENT ON COLUMN t_note.update_time        IS '更新时间';
-COMMENT ON COLUMN t_note.is_deleted         IS '逻辑删除（false：未删除 true：已删除）';
 
 -- 笔记内容 UUID（关联 ScyllaDB note_content.id）；追加
 ALTER TABLE t_note ADD COLUMN IF NOT EXISTS content_uuid VARCHAR(36) NOT NULL DEFAULT '';
 COMMENT ON COLUMN t_note.content_uuid IS '笔记内容 UUID（关联 ScyllaDB note_content.id）';
+
+-- 移除逻辑删除列：笔记删除改用 status=2 表示（决策，见 PRD 2026-07-09-note-rocketmq-and-cache-consistency）
+ALTER TABLE t_note DROP COLUMN IF EXISTS is_deleted;
 
 CREATE INDEX IF NOT EXISTS idx_note_creator_id ON t_note(creator_id);
 CREATE INDEX IF NOT EXISTS idx_note_topic_id   ON t_note(topic_id);
