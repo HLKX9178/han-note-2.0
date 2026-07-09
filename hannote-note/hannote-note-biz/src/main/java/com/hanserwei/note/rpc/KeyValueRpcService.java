@@ -4,6 +4,8 @@ import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.kv.api.KeyValueHttpApi;
 import com.hanserwei.kv.api.dto.req.AddNoteContentReqDTO;
 import com.hanserwei.kv.api.dto.req.DeleteNoteContentReqDTO;
+import com.hanserwei.kv.api.dto.req.FindNoteContentReqDTO;
+import com.hanserwei.kv.api.dto.resp.FindNoteContentRspDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -64,5 +66,24 @@ public class KeyValueRpcService {
             return false;
         }
         return true;
+    }
+
+    /**
+     * 查询笔记内容.
+     *
+     * @param uuid 笔记内容 UUID
+     * @return 笔记正文；查不到或失败返回 {@code null}
+     */
+    public String findNoteContent(String uuid) {
+        FindNoteContentReqDTO findNoteContentReqDTO = FindNoteContentReqDTO.builder()
+                .uuid(uuid)
+                .build();
+
+        Response<FindNoteContentRspDTO> response = keyValueHttpApi.findNoteContent(findNoteContentReqDTO);
+        if (Objects.isNull(response) || !response.isSuccess() || Objects.isNull(response.getData())) {
+            log.error("==> 调用 KV 服务查询笔记内容失败, uuid: {}, response: {}", uuid, response);
+            return null;
+        }
+        return response.getData().getContent();
     }
 }

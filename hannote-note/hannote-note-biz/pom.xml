@@ -51,6 +51,17 @@
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-kv-api</artifactId>
         </dependency>
+        <!-- 用户服务契约（详情接口查发布者昵称/头像） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-user-api</artifactId>
+        </dependency>
+
+        <!-- Caffeine 本地缓存（笔记详情 L1 缓存） -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

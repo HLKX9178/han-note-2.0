@@ -12,6 +12,7 @@
 #   {{token}}        由 hannote-auth.http 登录接口写入（gateway 环境用）
 #   {{userId}}       note-direct 环境下模拟网关透传的用户 ID
 #   {{topicId}}      话题 ID
+#   {{noteId}}       笔记 ID（详情/更新用；填一条已发布笔记的 ID）
 
 ### 1. 发布图文笔记（经网关，带 JWT）—— 环境 gateway
 POST {{noteHost}}{{noteBasePath}}/note/publish
@@ -103,5 +104,81 @@ userId: {{userId}}
     client.test("缺图被参数校验拦截", function () {
         client.assert(response.body.success === false, "预期 success=false");
         client.assert(response.body.errorCode === "NOTE-10001", "预期 NOTE-10001，实际 " + response.body.errorCode);
+    });
+%}
+
+### 6. 笔记详情（直连 8085）—— 环境 note-direct
+# 连续调两次：首次回源 DB + 写缓存，第二次命中本地缓存（观察日志「命中笔记详情本地缓存」）
+POST {{noteHost}}{{noteBasePath}}/note/detail
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("详情查询成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data && response.body.data.id != null, "未返回笔记详情");
+    });
+%}
+
+### 7. 查询不存在的笔记应返回 NOTE-20002（并写空值缓存防穿透）—— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/detail
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": -1
+}
+
+> {%
+    client.test("笔记不存在", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "NOTE-20002", "预期 NOTE-20002，实际 " + response.body.errorCode);
+    });
+%}
+
+### 8. 更新笔记（直连 8085，仅作者本人可改）—— 环境 note-direct
+# userId 必须等于该笔记的 creatorId，否则返回 NOTE-20006
+POST {{noteHost}}{{noteBasePath}}/note/update
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}},
+  "type": 0,
+  "imgUris": ["http://localhost:8081/hannote/updated.jpg"],
+  "title": "更新后的标题",
+  "content": "更新后的内容111",
+  "topicId": {{topicId}}
+}
+
+> {%
+    client.test("更新成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 9. 更新他人笔记应返回 NOTE-20006 —— 环境 note-direct
+# 用一个非作者的 userId 头请求
+POST {{noteHost}}{{noteBasePath}}/note/update
+Content-Type: application/json
+userId: 999999
+
+{
+  "id": {{noteId}},
+  "type": 0,
+  "imgUris": ["http://localhost:8081/hannote/x.jpg"],
+  "title": "越权更新尝试"
+}
+
+> {%
+    client.test("越权被拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "NOTE-20006", "预期 NOTE-20006，实际 " + response.body.errorCode);
     });
 %}

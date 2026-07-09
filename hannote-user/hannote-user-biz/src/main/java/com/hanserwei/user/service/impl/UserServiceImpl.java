@@ -294,7 +294,7 @@ public class UserServiceImpl implements UserService {
         if (Objects.isNull(userDO)) {
             cacheWriteExecutor.execute(() -> {
                 long expire = 60 + ThreadLocalRandom.current().nextInt(60);
-                redisTemplate.opsForValue().set(redisKey, NULL_VALUE, expire, TimeUnit.SECONDS);
+                redisTemplate.opsForValue().set(redisKey, NULL_VALUE, Duration.ofSeconds(expire));
             });
             throw new BizException(ResponseCodeEnum.USER_NOT_FOUND);
         }
@@ -308,7 +308,7 @@ public class UserServiceImpl implements UserService {
         cacheWriteExecutor.execute(() -> {
             LOCAL_CACHE.put(userId, rspDTO);
             long expire = Duration.ofDays(1).toSeconds() + ThreadLocalRandom.current().nextInt(60 * 60 * 4);
-            redisTemplate.opsForValue().set(redisKey, JsonUtils.toJsonString(rspDTO), expire, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(redisKey, JsonUtils.toJsonString(rspDTO), Duration.ofSeconds(expire));
         });
 
         return Response.success(rspDTO);

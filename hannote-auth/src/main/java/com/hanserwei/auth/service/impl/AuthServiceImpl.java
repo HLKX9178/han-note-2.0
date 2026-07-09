@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 /**
  * 认证业务实现.
@@ -175,7 +175,7 @@ public class AuthServiceImpl implements AuthService {
         long ttlMillis = jwtTokenProvider.getExpiration(token).getTime() - System.currentTimeMillis();
         if (ttlMillis > 0) {
             String blacklistKey = RedisKeyConstants.buildTokenBlacklistKey(token);
-            redisTemplate.opsForValue().set(blacklistKey, "1", ttlMillis, TimeUnit.MILLISECONDS);
+            redisTemplate.opsForValue().set(blacklistKey, "1", Duration.ofMillis(ttlMillis));
         }
 
         log.info("==> 用户退出登录, userId: {}", currentUserId());
