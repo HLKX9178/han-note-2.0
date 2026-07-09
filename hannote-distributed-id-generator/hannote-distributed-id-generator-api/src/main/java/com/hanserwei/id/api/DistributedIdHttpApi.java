@@ -36,4 +36,12 @@ public interface DistributedIdHttpApi {
      */
     @PostExchange(PREFIX + "/user/generate")
     Response<Long> generateUserId();
+
+    /**
+     * 生成笔记 ID（note-id）.
+     *
+     * @return 全局唯一的笔记 ID
+     */
+    @PostExchange(PREFIX + "/note/generate")
+    Response<Long> generateNoteId();
 }

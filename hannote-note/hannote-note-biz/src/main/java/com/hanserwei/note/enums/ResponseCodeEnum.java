@@ -20,7 +20,8 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     PARAM_NOT_VALID("NOTE-10001", "参数错误"),
 
     // ----------- 业务异常状态码 -----------
-    // 后续博客出业务接口时按需补充（NOTE-2xxxx）
+    NOTE_TYPE_ERROR("NOTE-20000", "未知的笔记类型"),
+    NOTE_PUBLISH_FAIL("NOTE-20001", "笔记发布失败"),
     ;
 
     private final String errorCode;

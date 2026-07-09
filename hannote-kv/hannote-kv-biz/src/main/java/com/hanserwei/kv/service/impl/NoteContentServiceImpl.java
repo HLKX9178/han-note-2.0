@@ -33,31 +33,31 @@ public class NoteContentServiceImpl implements NoteContentService {
 
     @Override
     public Response<?> addNoteContent(AddNoteContentReqDTO addNoteContentReqDTO) {
+        // 笔记内容 UUID（由笔记服务生成并传入）
+        String uuid = addNoteContentReqDTO.getUuid();
         // 笔记内容
         String content = addNoteContentReqDTO.getContent();
 
-        // 构建数据库 DO 实体类
+        // 构建数据库 DO 实体类（以笔记服务传入的 UUID 作主键）
         NoteContentDO noteContentDO = NoteContentDO.builder()
-                // TODO: 暂时用随机 UUID 作主键（便于 JMeter 压测，无需动态传笔记 ID）；
-                //  后续开发笔记服务时改为存储由笔记服务传入的 noteId
-                .id(UUID.randomUUID())
+                .id(UUID.fromString(uuid))
                 .content(content)
                 .build();
 
         // 插入数据
         noteContentRepository.save(noteContentDO);
-        log.info("==> 笔记内容已保存, id: {}", noteContentDO.getId());
+        log.info("==> 笔记内容已保存, uuid: {}", noteContentDO.getId());
 
         return Response.success();
     }
 
     @Override
     public Response<FindNoteContentRspDTO> findNoteContent(FindNoteContentReqDTO findNoteContentReqDTO) {
-        // 笔记 ID
-        String noteId = findNoteContentReqDTO.getNoteId();
+        // 笔记内容 UUID
+        String uuid = findNoteContentReqDTO.getUuid();
 
-        // 根据笔记 ID 查询笔记内容
-        Optional<NoteContentDO> optional = noteContentRepository.findById(UUID.fromString(noteId));
+        // 根据 UUID 查询笔记内容
+        Optional<NoteContentDO> optional = noteContentRepository.findById(UUID.fromString(uuid));
 
         // 若笔记内容不存在，抛出业务异常交由全局异常处理器统一处理
         if (optional.isEmpty()) {
@@ -67,7 +67,7 @@ public class NoteContentServiceImpl implements NoteContentService {
         NoteContentDO noteContentDO = optional.get();
         // 构建返参 DTO
         FindNoteContentRspDTO findNoteContentRspDTO = FindNoteContentRspDTO.builder()
-                .noteId(noteContentDO.getId())
+                .uuid(noteContentDO.getId())
                 .content(noteContentDO.getContent())
                 .build();
 
@@ -76,12 +76,12 @@ public class NoteContentServiceImpl implements NoteContentService {
 
     @Override
     public Response<?> deleteNoteContent(DeleteNoteContentReqDTO deleteNoteContentReqDTO) {
-        // 笔记 ID
-        String noteId = deleteNoteContentReqDTO.getNoteId();
+        // 笔记内容 UUID
+        String uuid = deleteNoteContentReqDTO.getUuid();
 
         // 根据主键删除笔记内容
-        noteContentRepository.deleteById(UUID.fromString(noteId));
-        log.info("==> 笔记内容已删除, id: {}", noteId);
+        noteContentRepository.deleteById(UUID.fromString(uuid));
+        log.info("==> 笔记内容已删除, uuid: {}", uuid);
 
         return Response.success();
     }

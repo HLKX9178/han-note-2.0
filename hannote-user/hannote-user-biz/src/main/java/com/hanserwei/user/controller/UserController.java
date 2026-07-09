@@ -2,9 +2,11 @@ package com.hanserwei.user.controller;
 
 import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
 import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
+import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
 import com.hanserwei.user.service.UserService;
@@ -81,5 +83,17 @@ public class UserController {
     @ApiOperationLog(description = "密码更新")
     public Response<?> updatePassword(@Validated @RequestBody UpdateUserPasswordReqDTO updateUserPasswordReqDTO) {
         return userService.updatePassword(updateUserPasswordReqDTO);
+    }
+
+    /**
+     * 根据用户 ID 查询用户信息（供笔记详情等场景 RPC 调用，二级缓存加持）.
+     *
+     * @param findUserByIdReqDTO 查询入参
+     * @return 用户信息（ID / 昵称 / 头像）
+     */
+    @PostMapping("/findById")
+    @ApiOperationLog(description = "查询用户信息")
+    public Response<FindUserByIdRspDTO> findById(@Validated @RequestBody FindUserByIdReqDTO findUserByIdReqDTO) {
+        return userService.findById(findUserByIdReqDTO);
     }
 }

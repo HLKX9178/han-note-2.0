@@ -32,3 +32,6 @@ cosid:
       user_id:
         offset: 10000 # 起始值（安全余量：t_user 最大 id<1000）
         step: 2000
+      note_id:
+        offset: 10000 # 起始值（笔记主键，趋势递增，对 PG 主键索引友好）
+        step: 2000

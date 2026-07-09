@@ -117,3 +117,35 @@ Content-Type: application/json
         client.assert(response.body.errorCode === "USER-20007", "预期 USER-20007，实际 " + response.body.errorCode);
     });
 %}
+
+### 7. 根据用户 ID 查询用户信息（RPC 接口，直连 8082）—— 环境 user-direct
+# 二级缓存：首次回源 DB，之后命中 Redis / Caffeine。连续调两次观察日志「命中本地缓存」
+POST {{userHost}}{{userBasePath}}/user/findById
+Content-Type: application/json
+
+{
+  "id": {{userId}}
+}
+
+> {%
+    client.test("查询成功", function() {
+        client.assert(response.status === 200, "状态码非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data && response.body.data.id != null, "未返回用户信息");
+    });
+%}
+
+### 8. 查询不存在的用户 ID —— 环境 user-direct，预期 USER-20007（并写入空值缓存防穿透）
+POST {{userHost}}{{userBasePath}}/user/findById
+Content-Type: application/json
+
+{
+  "id": -1
+}
+
+> {%
+    client.test("用户不存在", function() {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "USER-20007", "预期 USER-20007，实际 " + response.body.errorCode);
+    });
+%}

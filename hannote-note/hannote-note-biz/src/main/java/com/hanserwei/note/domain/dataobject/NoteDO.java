@@ -38,6 +38,7 @@ public class NoteDO {
     private String title;
 
     /** 正文是否为空（false：不为空 true：空）。为空时无需调 KV 服务取正文 */
+    @TableField("is_content_empty")
     private Boolean contentEmpty;
 
     /** 发布者 ID */
@@ -49,7 +50,8 @@ public class NoteDO {
     /** 话题名称（冗余字段，避免反查 t_topic） */
     private String topicName;
 
-    /** 是否置顶（false：未置顶 true：置顶） */
+    /** 是否置顶（false：未置顶 true：置顶），对应列 is_top */
+    @TableField("is_top")
     private Boolean top;
 
     /** 类型（0：图文 1：视频） */
@@ -72,6 +74,9 @@ public class NoteDO {
 
     /** 更新时间 */
     private LocalDateTime updateTime;
+
+    /** 笔记内容 UUID（关联 ScyllaDB note_content.id；正文为空时为空串） */
+    private String contentUuid;
 
     /** 逻辑删除标志（false：未删除 true：已删除），对应列 is_deleted */
     @TableLogic(value = "false", delval = "true")

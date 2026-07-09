@@ -33,6 +33,12 @@ spring:
                 - Path=/user/**
               filters:
                 - StripPrefix=1
+            - id: hannote-note
+              uri: lb://hannote-note
+              predicates:
+                - Path=/note/**
+              filters:
+                - StripPrefix=1
       # 开启基于服务发现的动态路由（可选，按需保留）
       discovery:
         locator:

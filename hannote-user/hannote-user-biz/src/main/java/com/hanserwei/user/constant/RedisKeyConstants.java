@@ -26,6 +26,11 @@ public final class RedisKeyConstants {
     public static final String ROLE_PERMISSIONS_KEY_PREFIX = "hannote:role:permissions:";
 
     /**
+     * 用户信息 Key 前缀
+     */
+    public static final String USER_INFO_KEY_PREFIX = "hannote:user:info:";
+
+    /**
      * 构建用户角色 Key
      *
      * @param phone 手机号
@@ -43,5 +48,15 @@ public final class RedisKeyConstants {
      */
     public static String buildRolePermissionsKey(Long roleId) {
         return ROLE_PERMISSIONS_KEY_PREFIX + roleId;
+    }
+
+    /**
+     * 构建用户信息 Key
+     *
+     * @param userId 用户 ID
+     * @return hannote:user:info:{userId}
+     */
+    public static String buildUserInfoKey(Long userId) {
+        return USER_INFO_KEY_PREFIX + userId;
     }
 }

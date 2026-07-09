@@ -25,3 +25,14 @@ POST {{baseUrl}}/id/user/generate
         client.assert(response.body.data != null, "未返回 data");
     });
 %}
+
+### 生成笔记 ID（note-id）
+POST {{baseUrl}}/id/note/generate
+
+> {%
+    client.test("生成 note-id 成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data != null, "未返回 data");
+    });
+%}

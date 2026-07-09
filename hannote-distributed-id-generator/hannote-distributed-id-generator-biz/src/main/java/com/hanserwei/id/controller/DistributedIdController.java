@@ -32,4 +32,9 @@ public class DistributedIdController implements DistributedIdHttpApi {
     public Response<Long> generateUserId() {
         return Response.success(distributedIdService.generateUserId());
     }
+
+    @Override
+    public Response<Long> generateNoteId() {
+        return Response.success(distributedIdService.generateNoteId());
+    }
 }

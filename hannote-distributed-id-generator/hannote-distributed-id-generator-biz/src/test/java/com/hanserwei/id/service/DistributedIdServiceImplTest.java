@@ -34,4 +34,12 @@ class DistributedIdServiceImplTest {
         assertTrue(second > first, "user-id 应趋势递增");
         assertTrue(first >= 10000L, "user-id 起始值应 >= offset(10000)");
     }
+
+    @Test
+    void noteId_should_be_monotonically_increasing() {
+        long first = distributedIdService.generateNoteId();
+        long second = distributedIdService.generateNoteId();
+        assertTrue(second > first, "note-id 应趋势递增");
+        assertTrue(first >= 10000L, "note-id 起始值应 >= offset(10000)");
+    }
 }

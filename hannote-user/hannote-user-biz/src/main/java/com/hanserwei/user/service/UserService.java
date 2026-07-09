@@ -1,9 +1,11 @@
 package com.hanserwei.user.service;
 
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
 import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
+import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
 
@@ -49,4 +51,12 @@ public interface UserService {
      * @return 操作结果
      */
     Response<?> updatePassword(UpdateUserPasswordReqDTO updateUserPasswordReqDTO);
+
+    /**
+     * 根据用户 ID 查询用户信息（二级缓存：Caffeine L1 + Redis L2 + DB）.
+     *
+     * @param findUserByIdReqDTO 查询入参
+     * @return 用户信息
+     */
+    Response<FindUserByIdRspDTO> findById(FindUserByIdReqDTO findUserByIdReqDTO);
 }

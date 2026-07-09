@@ -1,9 +1,11 @@
 package com.hanserwei.user.api;
 
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
 import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
+import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.service.annotation.HttpExchange;
@@ -52,4 +54,13 @@ public interface UserHttpApi {
      */
     @PostExchange(PREFIX + "/password/update")
     Response<?> updatePassword(@RequestBody UpdateUserPasswordReqDTO updateUserPasswordReqDTO);
+
+    /**
+     * 根据用户 ID 查询用户信息（供笔记详情等场景 RPC 调用）.
+     *
+     * @param findUserByIdReqDTO 查询入参
+     * @return 用户信息（ID / 昵称 / 头像）
+     */
+    @PostExchange(PREFIX + "/findById")
+    Response<FindUserByIdRspDTO> findById(@RequestBody FindUserByIdReqDTO findUserByIdReqDTO);
 }

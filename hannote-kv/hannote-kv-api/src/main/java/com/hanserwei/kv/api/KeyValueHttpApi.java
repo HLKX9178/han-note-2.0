@@ -36,7 +36,7 @@ public interface KeyValueHttpApi {
     Response<?> addNoteContent(@RequestBody AddNoteContentReqDTO addNoteContentReqDTO);
 
     /**
-     * 根据笔记 ID 查询笔记内容.
+     * 根据 UUID 查询笔记内容.
      *
      * @param findNoteContentReqDTO 查询入参
      * @return 笔记内容
@@ -45,7 +45,7 @@ public interface KeyValueHttpApi {
     Response<FindNoteContentRspDTO> findNoteContent(@RequestBody FindNoteContentReqDTO findNoteContentReqDTO);
 
     /**
-     * 根据笔记 ID 删除笔记内容.
+     * 根据 UUID 删除笔记内容.
      *
      * @param deleteNoteContentReqDTO 删除入参
      * @return 操作结果

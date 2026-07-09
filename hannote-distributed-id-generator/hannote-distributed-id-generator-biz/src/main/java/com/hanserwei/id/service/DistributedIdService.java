@@ -22,4 +22,11 @@ public interface DistributedIdService {
      * @return 全局唯一 ID
      */
     long generateUserId();
+
+    /**
+     * 生成笔记 ID.
+     *
+     * @return 全局唯一 ID
+     */
+    long generateNoteId();
 }

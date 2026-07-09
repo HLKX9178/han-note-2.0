@@ -1,0 +1,107 @@
+### hannote 笔记服务 接口测试（IntelliJ HTTP Client）
+# 使用方式：
+#   - 环境 gateway（经网关 8000，需登录）：先跑 hannote-auth.http 登录写入 {{token}}，
+#     再测试 /note/publish（发布需 JWT，creatorId 由网关透传的 userId 头解析）。
+#   - 环境 note-direct（直连 8085）：绕过网关直连，手动补 userId 头模拟网关透传。
+# 前置：分布式 ID 服务(8084) / KV 服务(8083) / PostgreSQL / Redis / Nacos 均需就绪；
+#      话题 topicId 需在 t_topic 中存在（见 docs/sql/init_data.sql 种子数据）。
+#
+# 变量（http-client.env.json）：
+#   {{noteHost}}     gateway=http://localhost:8000  note-direct=http://localhost:8085
+#   {{noteBasePath}} gateway=/note                  note-direct=""
+#   {{token}}        由 hannote-auth.http 登录接口写入（gateway 环境用）
+#   {{userId}}       note-direct 环境下模拟网关透传的用户 ID
+#   {{topicId}}      话题 ID
+
+### 1. 发布图文笔记（经网关，带 JWT）—— 环境 gateway
+POST {{noteHost}}{{noteBasePath}}/note/publish
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": 0,
+  "imgUris": ["http://localhost:8081/hannote/sample.jpg"],
+  "title": "图文笔记测试标题",
+  "content": "图文笔记测试内容",
+  "topicId": {{topicId}}
+}
+
+> {%
+    client.test("图文发布成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 2. 发布视频笔记（经网关，带 JWT）—— 环境 gateway
+POST {{noteHost}}{{noteBasePath}}/note/publish
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "type": 1,
+  "videoUri": "http://localhost:8081/hannote/sample.mp4",
+  "title": "视频笔记测试标题",
+  "content": "视频笔记测试内容",
+  "topicId": {{topicId}}
+}
+
+> {%
+    client.test("视频发布成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 3. 发布图文笔记（直连 8085，手动补 userId 头）—— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/publish
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "type": 0,
+  "imgUris": ["http://localhost:8081/hannote/sample.jpg"],
+  "title": "直连图文笔记",
+  "content": "直连图文内容"
+}
+
+> {%
+    client.test("直连发布成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 4. 未知笔记类型应返回 NOTE-20000 —— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/publish
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "type": 9,
+  "title": "非法类型"
+}
+
+> {%
+    client.test("未知类型被拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "NOTE-20000", "预期 NOTE-20000，实际 " + response.body.errorCode);
+    });
+%}
+
+### 5. 图文缺图应返回 NOTE-10001 —— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/publish
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "type": 0,
+  "title": "缺图的图文笔记"
+}
+
+> {%
+    client.test("缺图被参数校验拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "NOTE-10001", "预期 NOTE-10001，实际 " + response.body.errorCode);
+    });
+%}

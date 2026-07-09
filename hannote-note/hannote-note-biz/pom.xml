@@ -36,9 +36,37 @@
             <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
         </dependency>
 
+        <!-- 服务间调用组件（HTTP Interface + LoadBalancer） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-rpc</artifactId>
+        </dependency>
+        <!-- 分布式 ID 服务契约（生成笔记 ID） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-distributed-id-generator-api</artifactId>
+        </dependency>
+        <!-- KV 键值服务契约（存取笔记正文） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-kv-api</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Guava Preconditions 参数校验 -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+
+        <!-- 字符串工具 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
         </dependency>
 
         <!-- 参数校验运行时（@Validated 需要） -->

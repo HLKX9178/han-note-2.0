@@ -36,6 +36,10 @@ COMMENT ON COLUMN t_note.create_time        IS '创建时间';
 COMMENT ON COLUMN t_note.update_time        IS '更新时间';
 COMMENT ON COLUMN t_note.is_deleted         IS '逻辑删除（false：未删除 true：已删除）';
 
+-- 笔记内容 UUID（关联 ScyllaDB note_content.id）；追加
+ALTER TABLE t_note ADD COLUMN IF NOT EXISTS content_uuid VARCHAR(36) NOT NULL DEFAULT '';
+COMMENT ON COLUMN t_note.content_uuid IS '笔记内容 UUID（关联 ScyllaDB note_content.id）';
+
 CREATE INDEX IF NOT EXISTS idx_note_creator_id ON t_note(creator_id);
 CREATE INDEX IF NOT EXISTS idx_note_topic_id   ON t_note(topic_id);
 CREATE INDEX IF NOT EXISTS idx_note_status     ON t_note(status);
