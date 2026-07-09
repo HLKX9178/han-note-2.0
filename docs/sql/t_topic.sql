@@ -1,0 +1,17 @@
+-- hannote 话题表（PostgreSQL）
+-- 在数据库 hannote 中执行
+
+CREATE TABLE IF NOT EXISTS t_topic (
+    id           BIGINT       NOT NULL PRIMARY KEY,
+    name         VARCHAR(12)  NOT NULL,
+    create_time  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted   BOOLEAN      NOT NULL DEFAULT FALSE
+);
+
+COMMENT ON TABLE  t_topic             IS '话题表';
+COMMENT ON COLUMN t_topic.id          IS '主键 ID（由分布式 ID 服务生成）';
+COMMENT ON COLUMN t_topic.name        IS '话题名称';
+COMMENT ON COLUMN t_topic.create_time IS '创建时间';
+COMMENT ON COLUMN t_topic.update_time IS '更新时间';
+COMMENT ON COLUMN t_topic.is_deleted  IS '逻辑删除（false：未删除 true：已删除）';
