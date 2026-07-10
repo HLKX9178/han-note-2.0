@@ -21,6 +21,8 @@ import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.RecoverableDataAccessException;
+import org.springframework.dao.TransientDataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scripting.support.ResourceScriptSource;
@@ -116,7 +118,10 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
                 return true;
             } catch (Exception e) {
                 status.setRollbackOnly();
-                log.error("==> 关注关系落库失败, userId: {}, followUserId: {}", userId, followUserId, e);
+                // 瞬时故障（网络抖动/连接中断/超时/死锁）：抛出，交由 ORDERLY 挂起队列保序重试，DB 恢复后自愈
+                rethrowIfTransient(e);
+                // 毒丸消息（脏数据/映射错误等确定性异常）：重试永远失败，吞掉防止阻塞队列，靠 TTL 回源兜底
+                log.error("==> 关注关系落库失败（非瞬时，不重试）, userId: {}, followUserId: {}", userId, followUserId, e);
                 return false;
             }
         }));
@@ -158,7 +163,9 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
                 return true;
             } catch (Exception e) {
                 status.setRollbackOnly();
-                log.error("==> 取关关系删库失败, userId: {}, unfollowUserId: {}", userId, unfollowUserId, e);
+                // 瞬时故障：抛出触发 ORDERLY 保序重试；毒丸消息吞掉防止阻塞队列
+                rethrowIfTransient(e);
+                log.error("==> 取关关系删库失败（非瞬时，不重试）, userId: {}, unfollowUserId: {}", userId, unfollowUserId, e);
                 return false;
             }
         }));
@@ -168,6 +175,21 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
         if (isSuccess) {
             String fansKey = RedisKeyConstants.buildUserFansKey(unfollowUserId);
             stringRedisTemplate.opsForZSet().remove(fansKey, String.valueOf(userId));
+        }
+    }
+
+    /**
+     * 瞬时/可恢复类数据访问异常则重新抛出，交由上层（RocketMQ ORDERLY）挂起当前队列、保序重试。
+     *
+     * <p>覆盖网络抖动、连接中途断开、语句超时、死锁/锁等待等——这类异常重试大概率能成，
+     * 顺序消费"卡住等 DB 恢复"正是期望行为。其余确定性异常（完整性冲突、SQL/映射错误等毒丸）
+     * 不在此抛出，由调用方吞掉，避免同一条脏消息把队列永久堵死（ORDERLY 默认近乎无限重试）。
+     *
+     * @param e 事务执行中捕获的异常
+     */
+    private static void rethrowIfTransient(Exception e) {
+        if (e instanceof TransientDataAccessException || e instanceof RecoverableDataAccessException) {
+            throw (RuntimeException) e;
         }
     }
 

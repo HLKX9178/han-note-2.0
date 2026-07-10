@@ -35,6 +35,7 @@ import com.hanserwei.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
@@ -46,6 +47,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -330,8 +332,9 @@ public class UserServiceImpl implements UserService {
                 .toList();
         List<Object> redisValues = redisTemplate.opsForValue().multiGet(redisKeys);
 
-        // 结果集 + 待回源 DB 的 userId 列表
-        List<FindUserByIdRspDTO> result = new ArrayList<>();
+        // userId -> 用户信息，收集所有命中/回源结果，最终按入参 userIds 顺序输出
+        Map<Long, FindUserByIdRspDTO> userMap = new HashMap<>();
+        // 待回源 DB 的 userId 列表
         List<Long> userIdsNeedQuery = new ArrayList<>();
 
         for (int i = 0; i < userIds.size(); i++) {
@@ -345,35 +348,66 @@ public class UserServiceImpl implements UserService {
                 log.info("==> 命中空值哨兵, userId: {}", userId);
             } else {
                 // 命中真实缓存
-                result.add(JsonUtils.parseObject(String.valueOf(value), FindUserByIdRspDTO.class));
+                FindUserByIdRspDTO dto = JsonUtils.parseObject(String.valueOf(value), FindUserByIdRspDTO.class);
+                userMap.put(userId, dto);
             }
         }
 
-        // 2. 全部命中缓存（或均为哨兵）：直接返回
-        if (userIdsNeedQuery.isEmpty()) {
-            return Response.success(result);
+        // 2. 存在需回源的 userId：查库 + 回写缓存
+        if (!userIdsNeedQuery.isEmpty()) {
+            // 回源数据库（selectByIds 自动带 is_deleted=false 过滤）
+            List<UserDO> userDOS = userDOMapper.selectByIds(userIdsNeedQuery);
+            List<FindUserByIdRspDTO> dbResult = Objects.isNull(userDOS) ? List.of() : userDOS.stream()
+                    .map(userDO -> FindUserByIdRspDTO.builder()
+                            .id(userDO.getId())
+                            .nickName(userDO.getNickname())
+                            .avatar(userDO.getAvatar())
+                            .introduction(userDO.getIntroduction())
+                            .build())
+                    .toList();
+            dbResult.forEach(dto -> userMap.put(dto.getId(), dto));
+
+            // 异步 pipeline 回写 L2 Redis（长 TTL + 随机秒防雪崩）
+            if (!dbResult.isEmpty()) {
+                syncUsersToRedis(dbResult);
+            }
+
+            // DB 亦查无的 userId：异步写空值哨兵（短 TTL），防批量查询反复穿透
+            List<Long> notExistedIds = userIdsNeedQuery.stream()
+                    .filter(id -> !userMap.containsKey(id))
+                    .toList();
+            if (!notExistedIds.isEmpty()) {
+                syncNullValueToRedis(notExistedIds);
+            }
         }
 
-        // 3. 回源数据库（selectBatchIds 自动带 is_deleted=false 过滤）
-        List<UserDO> userDOS = userDOMapper.selectBatchIds(userIdsNeedQuery);
-        if (Objects.isNull(userDOS) || userDOS.isEmpty()) {
-            return Response.success(result);
-        }
-
-        List<FindUserByIdRspDTO> dbResult = userDOS.stream()
-                .map(userDO -> FindUserByIdRspDTO.builder()
-                        .id(userDO.getId())
-                        .nickName(userDO.getNickname())
-                        .avatar(userDO.getAvatar())
-                        .introduction(userDO.getIntroduction())
-                        .build())
+        // 3. 按入参 userIds 顺序输出（保证调用方拿到的顺序与请求一致，如关注列表按关注时间倒序）
+        List<FindUserByIdRspDTO> result = userIds.stream()
+                .map(userMap::get)
+                .filter(Objects::nonNull)
                 .toList();
-        result.addAll(dbResult);
-
-        // 4. 异步 pipeline 回写 L2 Redis（长 TTL + 随机秒防雪崩）
-        syncUsersToRedis(dbResult);
 
         return Response.success(result);
+    }
+
+    /**
+     * 异步批量写入空值哨兵（短 TTL），防止对不存在用户的批量查询反复穿透到 DB.
+     *
+     * @param notExistedIds DB 中确不存在的 userId 列表
+     */
+    private void syncNullValueToRedis(List<Long> notExistedIds) {
+        cacheWriteExecutor.execute(() -> redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            @SuppressWarnings({"unchecked", "rawtypes"})
+            public Object execute(RedisOperations operations) {
+                notExistedIds.forEach(userId -> {
+                    String key = RedisKeyConstants.buildUserInfoKey(userId);
+                    long expire = 60 + ThreadLocalRandom.current().nextInt(60);
+                    operations.opsForValue().set(key, NULL_VALUE, Duration.ofSeconds(expire));
+                });
+                return null;
+            }
+        }));
     }
 
     /**
@@ -387,8 +421,8 @@ public class UserServiceImpl implements UserService {
                     .collect(Collectors.toMap(FindUserByIdRspDTO::getId, u -> u));
             redisTemplate.executePipelined(new SessionCallback<Object>() {
                 @Override
-                @SuppressWarnings({"unchecked", "rawtypes"})
-                public Object execute(RedisOperations operations) {
+                @SuppressWarnings({"unchecked"})
+                public Object execute(@NonNull RedisOperations operations) {
                     map.forEach((userId, dto) -> {
                         String key = RedisKeyConstants.buildUserInfoKey(userId);
                         long expire = Duration.ofDays(1).toSeconds() + ThreadLocalRandom.current().nextInt(60 * 60 * 4);
@@ -439,7 +473,7 @@ public class UserServiceImpl implements UserService {
             roleKeys = new ArrayList<>(List.of(RoleConstants.COMMON_USER_ROLE_KEY));
         } else {
             List<Long> roleIds = userRoles.stream().map(UserRoleDO::getRoleId).toList();
-            roleKeys = roleDOMapper.selectBatchIds(roleIds).stream()
+            roleKeys = roleDOMapper.selectByIds(roleIds).stream()
                     .map(RoleDO::getRoleKey)
                     .filter(Objects::nonNull)
                     .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
