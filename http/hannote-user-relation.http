@@ -154,3 +154,79 @@ Content-Type: application/json
         client.assert(response.body.errorCode === "RELATION-20005", "errorCode 非 RELATION-20005：" + JSON.stringify(response.body));
     });
 %}
+
+### 10. 查询关注列表（第 1 页）—— 环境 gateway
+# 说明：userId 为「想查询谁的关注列表」（目标用户），非当前登录用户；
+#       该用户需在 t_following 有数据或 Redis ZSET hannote:relation:following:{userId} 有成员。
+POST {{relationHost}}{{relationBasePath}}/relation/following/list
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "userId": {{userId}},
+  "pageNo": 1
+}
+
+> {%
+    client.test("关注列表返回分页结构", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.hasOwnProperty("totalCount"), "缺少 totalCount 分页字段");
+        client.assert(response.body.hasOwnProperty("totalPage"), "缺少 totalPage 分页字段");
+    });
+%}
+
+### 11. 查询关注列表越界页码 —— 期望 data 为空、分页字段正确（环境 gateway）
+POST {{relationHost}}{{relationBasePath}}/relation/following/list
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "userId": {{userId}},
+  "pageNo": 9999
+}
+
+> {%
+    client.test("越界页码返回空数据", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data === null || response.body.data.length === 0, "越界页 data 应为空");
+    });
+%}
+
+### 12. 查询粉丝列表（第 1 页）—— 环境 gateway
+# 说明：userId 为「想查询谁的粉丝列表」（目标用户）；出参含 fansTotal / noteTotal（本期固定 0）。
+POST {{relationHost}}{{relationBasePath}}/relation/fans/list
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "userId": {{userId}},
+  "pageNo": 1
+}
+
+> {%
+    client.test("粉丝列表返回分页结构", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.hasOwnProperty("totalCount"), "缺少 totalCount 分页字段");
+    });
+%}
+
+### 13. 查询粉丝列表超 500 页限制 —— 期望 data 为空（环境 gateway）
+POST {{relationHost}}{{relationBasePath}}/relation/fans/list
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "userId": {{userId}},
+  "pageNo": 501
+}
+
+> {%
+    client.test("超 500 页返回空数据", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data === null || response.body.data.length === 0, "超限页 data 应为空");
+    });
+%}

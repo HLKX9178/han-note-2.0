@@ -1,7 +1,12 @@
 package com.hanserwei.relation.controller;
 
 import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
+import com.hanserwei.framework.common.response.PageResponse;
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.relation.model.vo.FindFansListReqVO;
+import com.hanserwei.relation.model.vo.FindFansUserRspVO;
+import com.hanserwei.relation.model.vo.FindFollowingListReqVO;
+import com.hanserwei.relation.model.vo.FindFollowingUserRspVO;
 import com.hanserwei.relation.model.vo.FollowUserReqVO;
 import com.hanserwei.relation.model.vo.UnfollowUserReqVO;
 import com.hanserwei.relation.service.RelationService;
@@ -47,5 +52,23 @@ public class RelationController {
     @ApiOperationLog(description = "取关用户")
     public Response<?> unfollow(@Validated @RequestBody UnfollowUserReqVO unfollowUserReqVO) {
         return relationService.unfollow(unfollowUserReqVO);
+    }
+
+    /**
+     * 查询关注列表.
+     */
+    @PostMapping("/following/list")
+    @ApiOperationLog(description = "查询用户关注列表")
+    public PageResponse<FindFollowingUserRspVO> findFollowingList(@Validated @RequestBody FindFollowingListReqVO findFollowingListReqVO) {
+        return relationService.findFollowingList(findFollowingListReqVO);
+    }
+
+    /**
+     * 查询粉丝列表.
+     */
+    @PostMapping("/fans/list")
+    @ApiOperationLog(description = "查询用户粉丝列表")
+    public PageResponse<FindFansUserRspVO> findFansList(@Validated @RequestBody FindFansListReqVO findFansListReqVO) {
+        return relationService.findFansList(findFansListReqVO);
     }
 }
