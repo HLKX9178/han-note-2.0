@@ -49,9 +49,7 @@ rocketmq:
     retry-times-when-send-failed: 3       # 同步发送失败重试次数
     retry-times-when-send-async-failed: 3 # 异步发送失败重试次数
     max-message-size: 4096                # 消息最大大小（字节）
-  consumer:
-    group: hannote_user_relation_group
-    pull-batch-size: 5                    # 每次拉取的最大消息数
+  # 消费者组由 @RocketMQMessageListener(consumerGroup=...) 指定，无需在此配置
 
 logging:
   level:
