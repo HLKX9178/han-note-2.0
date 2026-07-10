@@ -26,6 +26,7 @@
         <module>hannote-kv</module>
         <module>hannote-distributed-id-generator</module>
         <module>hannote-note</module>
+        <module>hannote-user-relation</module>
     </modules>
 
     <properties>
@@ -254,6 +255,12 @@
             <dependency>
                 <groupId>com.hanserwei</groupId>
                 <artifactId>hannote-note-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <!-- 用户关系服务对外契约 -->
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-user-relation-api</artifactId>
                 <version>${revision}</version>
             </dependency>
         </dependencies>
