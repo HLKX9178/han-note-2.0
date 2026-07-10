@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS t_following (
     create_time        TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 按 user_id 查询「我关注了谁」是核心场景，建索引提升查询性能
-CREATE INDEX IF NOT EXISTS idx_following_user_id ON t_following(user_id);
+-- 联合唯一索引：保证幂等（MQ 重复消费最终只落一条关注关系）。
+-- ��按最左匹配原则，(user_id, following_user_id) 亦可覆盖仅按 user_id 查询
+-- 「我关注了谁」的核心场景，故无需再单独建 user_id 普通索引。
+CREATE UNIQUE INDEX IF NOT EXISTS uk_following_user_following ON t_following(user_id, following_user_id);
 
 COMMENT ON TABLE  t_following                   IS '用户关注表';
 COMMENT ON COLUMN t_following.id                IS '主键 ID';

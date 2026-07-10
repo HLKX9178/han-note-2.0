@@ -14,3 +14,16 @@ mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
+
+# 业务配置（关注上限、粉丝 ZSET 缓存上限）
+hannote:
+  relation:
+    following:
+      max-limit: 1000        # 关注上限
+    fans:
+      max-cache-count: 5000  # 粉丝 ZSET 最大缓存数量（前 500 页）
+
+# MQ 消费者令牌桶限流（本地默认值；生产托管于 Nacos 配置中心动态刷新）
+mq-consumer:
+  follow-unfollow:
+    rate-limit: 5000         # 每秒令牌数（限流阈值）

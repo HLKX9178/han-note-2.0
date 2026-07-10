@@ -1,0 +1,92 @@
+### hannote 用户关系服务 接口测试（IntelliJ HTTP Client）
+# 使用方式：
+#   - 环境 gateway（经网关 8000，需登录）：先跑 hannote-auth.http 登录写入 {{token}}，
+#     再测试 /relation/follow（关注需 JWT，userId 由网关透传的 userId 头解析）。
+#   - 环境 relation-direct（直连 8086）：绕过网关直连，手动补 userId 头模拟网关透传。
+# 前置：用户服务(8082) / Redis / Nacos 均需就绪；被关注用户 {{followUserId}} 需在 t_user 中存在。
+#
+# 变量（http-client.env.json）：
+#   {{relationHost}}     gateway=http://localhost:8000  relation-direct=http://localhost:8086
+#   {{relationBasePath}} gateway=/relation              relation-direct=""
+#   {{token}}            由 hannote-auth.http 登录接口写入（gateway 环境用）
+#   {{userId}}           relation-direct 环境下模拟网关透传的当前登录用户 ID
+#   {{followUserId}}     被关注的用户 ID
+
+### 1. 正常关注（经网关，带 JWT）—— 环境 gateway
+POST {{relationHost}}{{relationBasePath}}/relation/follow
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "followUserId": {{followUserId}}
+}
+
+> {%
+    client.test("关注成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 2. 重复关注同一用户 —— 期望 RELATION-20004（环境 gateway，紧接用例 1 执行）
+POST {{relationHost}}{{relationBasePath}}/relation/follow
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "followUserId": {{followUserId}}
+}
+
+> {%
+    client.test("重复关注被拦截", function () {
+        client.assert(response.body.success === false, "success 应为 false");
+        client.assert(response.body.errorCode === "RELATION-20004", "errorCode 非 RELATION-20004：" + JSON.stringify(response.body));
+    });
+%}
+
+### 3. 关注不存在的用户 —— 期望 RELATION-20002（环境 gateway）
+POST {{relationHost}}{{relationBasePath}}/relation/follow
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "followUserId": 999999999
+}
+
+> {%
+    client.test("目标用户不存在被拦截", function () {
+        client.assert(response.body.success === false, "success 应为 false");
+        client.assert(response.body.errorCode === "RELATION-20002", "errorCode 非 RELATION-20002：" + JSON.stringify(response.body));
+    });
+%}
+
+### 4. 直连关注（绕过网关，手动补 userId 头）—— 环境 relation-direct
+POST {{relationHost}}{{relationBasePath}}/relation/follow
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "followUserId": {{followUserId}}
+}
+
+> {%
+    client.test("直连关注返回", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+    });
+%}
+
+### 5. 关注自己 —— 期望 RELATION-20001（环境 relation-direct，followUserId 填成 userId）
+POST {{relationHost}}{{relationBasePath}}/relation/follow
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "followUserId": {{userId}}
+}
+
+> {%
+    client.test("关注自己被拦截", function () {
+        client.assert(response.body.success === false, "success 应为 false");
+        client.assert(response.body.errorCode === "RELATION-20001", "errorCode 非 RELATION-20001：" + JSON.stringify(response.body));
+    });
+%}

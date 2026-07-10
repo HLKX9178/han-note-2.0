@@ -20,4 +20,34 @@ public final class RedisKeyConstants {
      * 用户关系服务 Redis Key 统一前缀。
      */
     public static final String RELATION_KEY_PREFIX = "hannote:relation:";
+
+    /**
+     * 关注列表 ZSET Key 前缀（member=关注的用户 ID，score=关注时间戳）。
+     */
+    public static final String USER_FOLLOWING_KEY_PREFIX = RELATION_KEY_PREFIX + "following:";
+
+    /**
+     * 粉丝列表 ZSET Key 前缀（member=粉丝的用户 ID，score=关注时间戳）。
+     */
+    public static final String USER_FANS_KEY_PREFIX = RELATION_KEY_PREFIX + "fans:";
+
+    /**
+     * 构建指定用户的关注列表 ZSET Key。
+     *
+     * @param userId 用户 ID
+     * @return hannote:relation:following:{userId}
+     */
+    public static String buildUserFollowingKey(Long userId) {
+        return USER_FOLLOWING_KEY_PREFIX + userId;
+    }
+
+    /**
+     * 构建指定用户的粉丝列表 ZSET Key。
+     *
+     * @param userId 用户 ID
+     * @return hannote:relation:fans:{userId}
+     */
+    public static String buildUserFansKey(Long userId) {
+        return USER_FANS_KEY_PREFIX + userId;
+    }
 }

@@ -36,6 +36,17 @@
             <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
         </dependency>
 
+        <!-- 服务间调用组件（HTTP Interface + LoadBalancer） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-rpc</artifactId>
+        </dependency>
+        <!-- 用户服务契约（校验被关注用户是否存在） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-user-api</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -84,6 +95,18 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- 配置中心（令牌桶限流阈值动态刷新） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
+        <!-- RocketMQ（关注/取关操作异步落库） -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-spring-boot-starter</artifactId>
         </dependency>
 
         <dependency>

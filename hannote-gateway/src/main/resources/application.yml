@@ -39,6 +39,12 @@ spring:
                 - Path=/note/**
               filters:
                 - StripPrefix=1
+            - id: hannote-user-relation
+              uri: lb://hannote-user-relation
+              predicates:
+                - Path=/relation/**
+              filters:
+                - StripPrefix=1
       # 开启基于服务发现的动态路由（可选，按需保留）
       discovery:
         locator:

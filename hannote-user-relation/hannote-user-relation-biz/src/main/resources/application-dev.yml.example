@@ -1,11 +1,21 @@
 # 复制为 application-dev.yml 并填入真实值（真实文件已被 .gitignore 忽略）
 spring:
+  # 从 Nacos 配置中心导入令牌桶限流配置（Spring Boot 4 原生方式，非 bootstrap.yml）
+  # optional: 前缀表示配置中心不可用时不阻断启动；本地 application.yml 已有默认值兜底
+  config:
+    import:
+      - optional:nacos:hannote-user-relation.yaml?refresh=true
   cloud:
     nacos:
       discovery:
         server-addr: <nacos-addr>
         namespace: hannote
         group: DEFAULT_GROUP
+      config:
+        server-addr: <nacos-addr>       # 配置中心地址（通常与 discovery 相同）
+        namespace: hannote
+        group: DEFAULT_GROUP
+        file-extension: yaml
 
   # PostgreSQL（用户关系服务复用 hannote 库）
   datasource:
@@ -30,6 +40,36 @@ spring:
           min-idle: 0
           max-idle: 10
 
+# RocketMQ（关注/取关异步落库）
+rocketmq:
+  name-server: <rocketmq-name-server>     # 如 127.0.0.1:9876
+  producer:
+    group: hannote_user_relation_group
+    send-message-timeout: 3000            # 消息发送超时时间（毫秒）
+    retry-times-when-send-failed: 3       # 同步发送失败重试次数
+    retry-times-when-send-async-failed: 3 # 异步发送失败重试次数
+    max-message-size: 4096                # 消息最大大小（字节）
+  consumer:
+    group: hannote_user_relation_group
+    pull-batch-size: 5                    # 每次拉取的最大消息数
+
 logging:
   level:
     com.hanserwei.relation.domain.mapper: debug
+
+# ============================================================================
+# Nacos 配置中心 data-id 内容示例
+# ----------------------------------------------------------------------------
+# 在 Nacos 控制台新增配置：
+#   Data ID : hannote-user-relation.yaml
+#   Group   : DEFAULT_GROUP
+#   Namespace : hannote
+#   格式     : YAML
+# 内容如下（令牌桶阈值集中托管，修改发布后经 @RefreshScope 动态生效，无需重启）：
+#
+#   mq-consumer:
+#     follow-unfollow:
+#       rate-limit: 5000   # 每秒令牌数 = 数据库可承受并发 / 集群实例数
+#
+# 扩缩容时按实例数调整：如 DB 承受 5000/s、集群 5 实例，则改为 1000。
+# ============================================================================
