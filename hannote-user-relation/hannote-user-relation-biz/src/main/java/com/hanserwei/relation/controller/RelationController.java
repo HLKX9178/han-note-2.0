@@ -3,6 +3,7 @@ package com.hanserwei.relation.controller;
 import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.relation.model.vo.FollowUserReqVO;
+import com.hanserwei.relation.model.vo.UnfollowUserReqVO;
 import com.hanserwei.relation.service.RelationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,5 +38,14 @@ public class RelationController {
     @ApiOperationLog(description = "关注用户")
     public Response<?> follow(@Validated @RequestBody FollowUserReqVO followUserReqVO) {
         return relationService.follow(followUserReqVO);
+    }
+
+    /**
+     * 取关用户.
+     */
+    @PostMapping("/unfollow")
+    @ApiOperationLog(description = "取关用户")
+    public Response<?> unfollow(@Validated @RequestBody UnfollowUserReqVO unfollowUserReqVO) {
+        return relationService.unfollow(unfollowUserReqVO);
     }
 }

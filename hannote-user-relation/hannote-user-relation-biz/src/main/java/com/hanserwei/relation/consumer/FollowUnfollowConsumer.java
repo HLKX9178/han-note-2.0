@@ -11,9 +11,12 @@ import com.hanserwei.relation.domain.dataobject.FollowingDO;
 import com.hanserwei.relation.domain.mapper.FansDOMapper;
 import com.hanserwei.relation.domain.mapper.FollowingDOMapper;
 import com.hanserwei.relation.model.dto.FollowUserMqDTO;
+import com.hanserwei.relation.model.dto.UnfollowUserMqDTO;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.common.message.MessageExt;
+import org.apache.rocketmq.spring.annotation.ConsumeMode;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.core.io.ClassPathResource;
@@ -47,7 +50,8 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @RocketMQMessageListener(
         consumerGroup = MQConstants.GROUP_FOLLOW_UNFOLLOW_CONSUMER,
-        topic = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW)
+        topic = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW,
+        consumeMode = ConsumeMode.ORDERLY)
 public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
 
     private final FollowingDOMapper followingDOMapper;
@@ -73,8 +77,7 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
         if (Objects.equals(tags, MQConstants.TAG_FOLLOW)) {
             handleFollowTagMessage(bodyJsonStr);
         } else if (Objects.equals(tags, MQConstants.TAG_UNFOLLOW)) {
-            // TODO: 取关落库（复刻后续博客）
-            log.info("==> 暂未实现取关消费逻辑, tags: {}", tags);
+            handleUnfollowTagMessage(bodyJsonStr);
         }
     }
 
@@ -122,6 +125,49 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
         // 落库成功才更新粉丝 ZSET（避免缓存与库不一致）
         if (isSuccess) {
             updateFansZset(userId, followUserId, createTime);
+        }
+    }
+
+    /**
+     * 处理取关消息：编程式事务删除双表记录，成功后从被取关方粉丝 ZSET 移除发起者。
+     *
+     * @param bodyJsonStr 消息体 JSON
+     */
+    private void handleUnfollowTagMessage(String bodyJsonStr) {
+        UnfollowUserMqDTO unfollowUserMqDTO = JsonUtils.parseObject(bodyJsonStr, UnfollowUserMqDTO.class);
+        if (Objects.isNull(unfollowUserMqDTO)) {
+            return;
+        }
+
+        Long userId = unfollowUserMqDTO.getUserId();
+        Long unfollowUserId = unfollowUserMqDTO.getUnfollowUserId();
+
+        // 编程式事务：关注表 + 粉丝表两条记录要么都删除，要么都回滚
+        boolean isSuccess = Boolean.TRUE.equals(transactionTemplate.execute(status -> {
+            try {
+                // 关注表：删除「我关注对方」这条记录
+                int count = followingDOMapper.delete(new LambdaQueryWrapper<FollowingDO>()
+                        .eq(FollowingDO::getUserId, userId)
+                        .eq(FollowingDO::getFollowingUserId, unfollowUserId));
+                // 删成功再删粉丝表：从对方的粉丝里移除我
+                if (count > 0) {
+                    fansDOMapper.delete(new LambdaQueryWrapper<FansDO>()
+                            .eq(FansDO::getUserId, unfollowUserId)
+                            .eq(FansDO::getFansUserId, userId));
+                }
+                return true;
+            } catch (Exception e) {
+                status.setRollbackOnly();
+                log.error("==> 取关关系删库失败, userId: {}, unfollowUserId: {}", userId, unfollowUserId, e);
+                return false;
+            }
+        }));
+        log.info("==> 取关关系删库结果: {}", isSuccess);
+
+        // 删库成功后，从被取关方的粉丝 ZSET 移除发起者（保证缓存与库一致）
+        if (isSuccess) {
+            String fansKey = RedisKeyConstants.buildUserFansKey(unfollowUserId);
+            stringRedisTemplate.opsForZSet().remove(fansKey, String.valueOf(userId));
         }
     }
 

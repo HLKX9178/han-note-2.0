@@ -4,6 +4,7 @@ import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
+import com.hanserwei.user.api.dto.req.FindUsersByIdsReqDTO;
 import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 用户控制器.
@@ -95,5 +98,17 @@ public class UserController {
     @ApiOperationLog(description = "查询用户信息")
     public Response<FindUserByIdRspDTO> findById(@Validated @RequestBody FindUserByIdReqDTO findUserByIdReqDTO) {
         return userService.findById(findUserByIdReqDTO);
+    }
+
+    /**
+     * 批量查询用户信息（供关注/粉丝列表等场景 RPC 调用，缓存 + pipeline 回写加持）.
+     *
+     * @param findUsersByIdsReqDTO 批量查询入参（ID 集合大小 [1, 10]）
+     * @return 用户信息列表
+     */
+    @PostMapping("/findByIds")
+    @ApiOperationLog(description = "批量查询用户信息")
+    public Response<List<FindUserByIdRspDTO>> findByIds(@Validated @RequestBody FindUsersByIdsReqDTO findUsersByIdsReqDTO) {
+        return userService.findByIds(findUsersByIdsReqDTO);
     }
 }

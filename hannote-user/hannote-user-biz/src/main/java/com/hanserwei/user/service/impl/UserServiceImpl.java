@@ -13,6 +13,7 @@ import com.hanserwei.framework.common.util.JsonUtils;
 import com.hanserwei.framework.common.util.ParamUtils;
 import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
+import com.hanserwei.user.api.dto.req.FindUsersByIdsReqDTO;
 import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
@@ -34,7 +35,9 @@ import com.hanserwei.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,10 +47,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 用户业务实现.
@@ -304,6 +309,7 @@ public class UserServiceImpl implements UserService {
                 .id(userDO.getId())
                 .nickName(userDO.getNickname())
                 .avatar(userDO.getAvatar())
+                .introduction(userDO.getIntroduction())
                 .build();
         cacheWriteExecutor.execute(() -> {
             LOCAL_CACHE.put(userId, rspDTO);
@@ -312,6 +318,86 @@ public class UserServiceImpl implements UserService {
         });
 
         return Response.success(rspDTO);
+    }
+
+    @Override
+    public Response<List<FindUserByIdRspDTO>> findByIds(FindUsersByIdsReqDTO findUsersByIdsReqDTO) {
+        List<Long> userIds = findUsersByIdsReqDTO.getIds();
+
+        // 1. 批量查 L2 Redis（multiGet 一次往返），按位置对应回 userId
+        List<String> redisKeys = userIds.stream()
+                .map(RedisKeyConstants::buildUserInfoKey)
+                .toList();
+        List<Object> redisValues = redisTemplate.opsForValue().multiGet(redisKeys);
+
+        // 结果集 + 待回源 DB 的 userId 列表
+        List<FindUserByIdRspDTO> result = new ArrayList<>();
+        List<Long> userIdsNeedQuery = new ArrayList<>();
+
+        for (int i = 0; i < userIds.size(); i++) {
+            Long userId = userIds.get(i);
+            Object value = Objects.isNull(redisValues) ? null : redisValues.get(i);
+            if (Objects.isNull(value)) {
+                // 真未命中：回源 DB
+                userIdsNeedQuery.add(userId);
+            } else if (NULL_VALUE.equals(value)) {
+                // 命中空值哨兵：DB 确无此用户，既不进结果也不回源（防穿透）
+                log.info("==> 命中空值哨兵, userId: {}", userId);
+            } else {
+                // 命中真实缓存
+                result.add(JsonUtils.parseObject(String.valueOf(value), FindUserByIdRspDTO.class));
+            }
+        }
+
+        // 2. 全部命中缓存（或均为哨兵）：直接返回
+        if (userIdsNeedQuery.isEmpty()) {
+            return Response.success(result);
+        }
+
+        // 3. 回源数据库（selectBatchIds 自动带 is_deleted=false 过滤）
+        List<UserDO> userDOS = userDOMapper.selectBatchIds(userIdsNeedQuery);
+        if (Objects.isNull(userDOS) || userDOS.isEmpty()) {
+            return Response.success(result);
+        }
+
+        List<FindUserByIdRspDTO> dbResult = userDOS.stream()
+                .map(userDO -> FindUserByIdRspDTO.builder()
+                        .id(userDO.getId())
+                        .nickName(userDO.getNickname())
+                        .avatar(userDO.getAvatar())
+                        .introduction(userDO.getIntroduction())
+                        .build())
+                .toList();
+        result.addAll(dbResult);
+
+        // 4. 异步 pipeline 回写 L2 Redis（长 TTL + 随机秒防雪崩）
+        syncUsersToRedis(dbResult);
+
+        return Response.success(result);
+    }
+
+    /**
+     * 异步线程 + pipeline 管道，将回源查询到的用户信息批量同步到 Redis（减少网络往返）.
+     *
+     * @param users 需回写的用户信息列表
+     */
+    private void syncUsersToRedis(List<FindUserByIdRspDTO> users) {
+        cacheWriteExecutor.execute(() -> {
+            Map<Long, FindUserByIdRspDTO> map = users.stream()
+                    .collect(Collectors.toMap(FindUserByIdRspDTO::getId, u -> u));
+            redisTemplate.executePipelined(new SessionCallback<Object>() {
+                @Override
+                @SuppressWarnings({"unchecked", "rawtypes"})
+                public Object execute(RedisOperations operations) {
+                    map.forEach((userId, dto) -> {
+                        String key = RedisKeyConstants.buildUserInfoKey(userId);
+                        long expire = Duration.ofDays(1).toSeconds() + ThreadLocalRandom.current().nextInt(60 * 60 * 4);
+                        operations.opsForValue().set(key, JsonUtils.toJsonString(dto), Duration.ofSeconds(expire));
+                    });
+                    return null;
+                }
+            });
+        });
     }
 
     /**

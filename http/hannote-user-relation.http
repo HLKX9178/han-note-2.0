@@ -90,3 +90,67 @@ Content-Type: application/json
         client.assert(response.body.errorCode === "RELATION-20001", "errorCode 非 RELATION-20001：" + JSON.stringify(response.body));
     });
 %}
+
+### 6. 正常取关（经网关，带 JWT）—— 环境 gateway（紧接用例 1 关注后执行）
+POST {{relationHost}}{{relationBasePath}}/relation/unfollow
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "unfollowUserId": {{followUserId}}
+}
+
+> {%
+    client.test("取关成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 7. 取关未关注的用户 —— 期望 RELATION-20006（环境 gateway，紧接用例 6 再次取关）
+POST {{relationHost}}{{relationBasePath}}/relation/unfollow
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "unfollowUserId": {{followUserId}}
+}
+
+> {%
+    client.test("未关注无法取关被拦截", function () {
+        client.assert(response.body.success === false, "success 应为 false");
+        client.assert(response.body.errorCode === "RELATION-20006", "errorCode 非 RELATION-20006：" + JSON.stringify(response.body));
+    });
+%}
+
+### 8. 取关不存在的用户 —— 期望 RELATION-20002（环境 gateway）
+POST {{relationHost}}{{relationBasePath}}/relation/unfollow
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "unfollowUserId": 999999999
+}
+
+> {%
+    client.test("目标用户不存在被拦截", function () {
+        client.assert(response.body.success === false, "success 应为 false");
+        client.assert(response.body.errorCode === "RELATION-20002", "errorCode 非 RELATION-20002：" + JSON.stringify(response.body));
+    });
+%}
+
+### 9. 取关自己 —— 期望 RELATION-20005（环境 relation-direct，unfollowUserId 填成 userId）
+POST {{relationHost}}{{relationBasePath}}/relation/unfollow
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "unfollowUserId": {{userId}}
+}
+
+> {%
+    client.test("取关自己被拦截", function () {
+        client.assert(response.body.success === false, "success 应为 false");
+        client.assert(response.body.errorCode === "RELATION-20005", "errorCode 非 RELATION-20005：" + JSON.stringify(response.body));
+    });
+%}

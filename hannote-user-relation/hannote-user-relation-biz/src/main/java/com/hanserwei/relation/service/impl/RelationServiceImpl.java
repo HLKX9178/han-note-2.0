@@ -8,19 +8,20 @@ import com.hanserwei.framework.common.util.JsonUtils;
 import com.hanserwei.relation.config.RelationProperties;
 import com.hanserwei.relation.constant.MQConstants;
 import com.hanserwei.relation.model.dto.FollowUserMqDTO;
+import com.hanserwei.relation.model.dto.UnfollowUserMqDTO;
 import com.hanserwei.relation.constant.RedisKeyConstants;
 import com.hanserwei.relation.domain.dataobject.FollowingDO;
 import com.hanserwei.relation.domain.mapper.FollowingDOMapper;
 import com.hanserwei.relation.enums.LuaResultEnum;
 import com.hanserwei.relation.enums.ResponseCodeEnum;
 import com.hanserwei.relation.model.vo.FollowUserReqVO;
+import com.hanserwei.relation.model.vo.UnfollowUserReqVO;
 import com.hanserwei.relation.rpc.UserRpcService;
 import com.hanserwei.relation.service.RelationService;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.core.io.ClassPathResource;
@@ -98,11 +99,73 @@ public class RelationServiceImpl implements RelationService {
 
         // 4. ZSET 不存在：从数据库回源同步后再写入
         if (Objects.equals(result, LuaResultEnum.ZSET_NOT_EXIST.getCode())) {
-            syncFollowingFromDbThenAdd(userId, followUserId, followingKey, timestamp, maxLimit);
+            boolean dbEmpty = loadFollowingIntoRedis(userId, followingKey);
+            if (!dbEmpty) {
+                // 回源后重新执行校验并写入本次关注
+                Long retry = stringRedisTemplate.execute(CHECK_AND_ADD_SCRIPT,
+                        Collections.singletonList(followingKey),
+                        String.valueOf(followUserId), String.valueOf(timestamp), String.valueOf(maxLimit));
+                checkLuaScriptResult(retry);
+            } else {
+                // DB 亦无记录：直接写入首条关注关系并设置过期时间
+                long expireSeconds = randomFollowingExpireSeconds();
+                stringRedisTemplate.execute(ADD_AND_EXPIRE_SCRIPT,
+                        Collections.singletonList(followingKey),
+                        String.valueOf(followUserId), String.valueOf(timestamp), String.valueOf(expireSeconds));
+            }
         }
 
         // 5. 发送 MQ，由消费者异步落库 t_following + t_fans（削峰、提升接口响应）
         sendFollowMq(userId, followUserId, now);
+
+        return Response.success();
+    }
+
+    @Override
+    public Response<?> unfollow(UnfollowUserReqVO unfollowUserReqVO) {
+        // 被取关的用户 ID
+        Long unfollowUserId = unfollowUserReqVO.getUnfollowUserId();
+        // 当前登录用户 ID
+        Long userId = LoginUserContextHolder.getUserId();
+
+        // 1. 校验：无法取关自己
+        if (Objects.equals(userId, unfollowUserId)) {
+            throw new BizException(ResponseCodeEnum.CANT_UNFOLLOW_YOUR_SELF);
+        }
+
+        // 2. RPC 校验：被取关的用户是否真实存在
+        FindUserByIdRspDTO unfollowUser = userRpcService.findById(unfollowUserId);
+        if (Objects.isNull(unfollowUser)) {
+            throw new BizException(ResponseCodeEnum.FOLLOW_USER_NOT_EXISTED);
+        }
+
+        // 3. Lua 原子校验并移除 Redis ZSET 中的关注关系
+        String followingKey = RedisKeyConstants.buildUserFollowingKey(userId);
+        Long result = stringRedisTemplate.execute(UNFOLLOW_CHECK_AND_DELETE_SCRIPT,
+                Collections.singletonList(followingKey), String.valueOf(unfollowUserId));
+
+        // 未关注对方，无法取关
+        if (Objects.equals(result, LuaResultEnum.NOT_FOLLOWED.getCode())) {
+            throw new BizException(ResponseCodeEnum.NOT_FOLLOWED);
+        }
+
+        // 4. ZSET 不存在（可能已过期）：从数据库回源同步后再次尝试移除
+        if (Objects.equals(result, LuaResultEnum.ZSET_NOT_EXIST.getCode())) {
+            boolean dbEmpty = loadFollowingIntoRedis(userId, followingKey);
+            // DB 无任何关注记录：说明未关注任何人，无法取关
+            if (dbEmpty) {
+                throw new BizException(ResponseCodeEnum.NOT_FOLLOWED);
+            }
+            // 回源后重新执行校验并移除
+            Long retry = stringRedisTemplate.execute(UNFOLLOW_CHECK_AND_DELETE_SCRIPT,
+                    Collections.singletonList(followingKey), String.valueOf(unfollowUserId));
+            if (Objects.equals(retry, LuaResultEnum.NOT_FOLLOWED.getCode())) {
+                throw new BizException(ResponseCodeEnum.NOT_FOLLOWED);
+            }
+        }
+
+        // 5. 发送 MQ，由消费者异步删除 t_following + t_fans、更新粉丝 ZSET
+        sendUnfollowMq(userId, unfollowUserId, LocalDateTime.now());
 
         return Response.success();
     }
@@ -129,54 +192,70 @@ public class RelationServiceImpl implements RelationService {
         String destination = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW + ":" + MQConstants.TAG_FOLLOW;
         log.info("==> 开始发送关注操作 MQ, 消息体: {}", followUserMqDTO);
 
-        // 异步发送，不阻塞接口响应
-        rocketMQTemplate.asyncSend(destination, message, new SendCallback() {
-            @Override
-            public void onSuccess(SendResult sendResult) {
-                log.info("==> 关注操作 MQ 发送成功, SendResult: {}", sendResult);
-            }
-
-            @Override
-            public void onException(Throwable throwable) {
-                log.error("==> 关注操作 MQ 发送异常: ", throwable);
-            }
-        });
+        // 顺序发送：以发起者 userId 为 hashKey，保证同一用户的关注/取关消息进同一队列、按序消费
+        SendResult sendResult = rocketMQTemplate.syncSendOrderly(destination, message, String.valueOf(userId));
+        log.info("==> 关注操作 MQ 发送成功, SendResult: {}", sendResult);
     }
 
     /**
-     * ZSET 关注列表不存在时，从数据库全量回源同步，再写入本次关注关系。
+     * 顺序发送取关操作 MQ（携带 Unfollow 标签，hashKey = 发起者 userId）。
      *
-     * <p>回源保证后续 ZCARD 上限校验基于完整数据。设随机过期时间（保底 1 天 + 随机秒）防雪崩。
-     * 注意：本期数据库尚无关注记录（落库在 MQ 消费者章节），故实际走「记录为空」分支；
-     * 回源分支代码先行建好，落库上线后自动生效。
+     * @param userId         发起取关的用户 ID
+     * @param unfollowUserId 被取关的用户 ID
+     * @param createTime     取关时刻
      */
-    private void syncFollowingFromDbThenAdd(Long userId, Long followUserId,
-                                            String followingKey, long timestamp, int maxLimit) {
+    private void sendUnfollowMq(Long userId, Long unfollowUserId, LocalDateTime createTime) {
+        UnfollowUserMqDTO unfollowUserMqDTO = UnfollowUserMqDTO.builder()
+                .userId(userId)
+                .unfollowUserId(unfollowUserId)
+                .createTime(createTime)
+                .build();
+
+        Message<String> message = MessageBuilder
+                .withPayload(JsonUtils.toJsonString(unfollowUserMqDTO))
+                .build();
+
+        // Topic:Tag —— 冒号连接使消息携带 Unfollow 标签
+        String destination = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW + ":" + MQConstants.TAG_UNFOLLOW;
+        log.info("==> 开始发送取关操作 MQ, 消息体: {}", unfollowUserMqDTO);
+
+        // 顺序发送：与关注共用 hashKey（发起者 userId），保证「关注→取关→关注」按序落库
+        SendResult sendResult = rocketMQTemplate.syncSendOrderly(destination, message, String.valueOf(userId));
+        log.info("==> 取关操作 MQ 发送成功, SendResult: {}", sendResult);
+    }
+
+    /**
+     * ZSET 关注列表不存在时，从数据库全量回源同步到 Redis（含过期时间），供关注/取关复用。
+     *
+     * <p>回源保证后续校验基于完整数据。设随机过期时间（保底 1 天 + 随机秒）防雪崩。
+     * 仅负责「查 DB + 全量回填 ZSET」，不含本次关注/取关的写入或移除——由调用方按业务补跑对应脚本。
+     *
+     * @param userId       当前用户 ID
+     * @param followingKey 当前用户关注列表 ZSET Key
+     * @return DB 关注记录是否为空（{@code true} 表示未关注任何人）
+     */
+    private boolean loadFollowingIntoRedis(Long userId, String followingKey) {
         // 查询数据库中当前用户的关注关系记录
         List<FollowingDO> followingDOS = followingDOMapper.selectList(
                 new LambdaQueryWrapper<FollowingDO>().eq(FollowingDO::getUserId, userId));
 
-        // 随机过期时间：保底 1 天 + [0, 1 天) 随机秒
-        long expireSeconds = FOLLOWING_EXPIRE_BASE_SECONDS
-                + ThreadLocalRandom.current().nextInt((int) FOLLOWING_EXPIRE_BASE_SECONDS);
-
         if (followingDOS == null || followingDOS.isEmpty()) {
-            // 记录为空：直接写入首条关注关系并设置过期时间
-            stringRedisTemplate.execute(ADD_AND_EXPIRE_SCRIPT,
-                    Collections.singletonList(followingKey),
-                    String.valueOf(followUserId), String.valueOf(timestamp), String.valueOf(expireSeconds));
-        } else {
-            // 记录不为空：批量回源全量关注关系并设置过期时间
-            Object[] batchArgs = buildBatchLuaArgs(followingDOS, expireSeconds);
-            stringRedisTemplate.execute(BATCH_ADD_AND_EXPIRE_SCRIPT,
-                    Collections.singletonList(followingKey), batchArgs);
-
-            // 回源后重新执行校验并写入本次关注
-            Long retry = stringRedisTemplate.execute(CHECK_AND_ADD_SCRIPT,
-                    Collections.singletonList(followingKey),
-                    String.valueOf(followUserId), String.valueOf(timestamp), String.valueOf(maxLimit));
-            checkLuaScriptResult(retry);
+            return true;
         }
+
+        // 记录不为空：批量回源全量关注关系并设置随机过期时间
+        Object[] batchArgs = buildBatchLuaArgs(followingDOS, randomFollowingExpireSeconds());
+        stringRedisTemplate.execute(BATCH_ADD_AND_EXPIRE_SCRIPT,
+                Collections.singletonList(followingKey), batchArgs);
+        return false;
+    }
+
+    /**
+     * 关注列表 ZSET 随机过期时间：保底 1 天 + [0, 1 天) 随机秒，打散过期防雪崩。
+     */
+    private static long randomFollowingExpireSeconds() {
+        return FOLLOWING_EXPIRE_BASE_SECONDS
+                + ThreadLocalRandom.current().nextInt((int) FOLLOWING_EXPIRE_BASE_SECONDS);
     }
 
     /**
@@ -217,6 +296,7 @@ public class RelationServiceImpl implements RelationService {
     private static final DefaultRedisScript<Long> CHECK_AND_ADD_SCRIPT = buildLongScript("/lua/follow_check_and_add.lua");
     private static final DefaultRedisScript<Long> ADD_AND_EXPIRE_SCRIPT = buildLongScript("/lua/follow_add_and_expire.lua");
     private static final DefaultRedisScript<Long> BATCH_ADD_AND_EXPIRE_SCRIPT = buildLongScript("/lua/follow_batch_add_and_expire.lua");
+    private static final DefaultRedisScript<Long> UNFOLLOW_CHECK_AND_DELETE_SCRIPT = buildLongScript("/lua/unfollow_check_and_delete.lua");
 
     private static DefaultRedisScript<Long> buildLongScript(String path) {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();

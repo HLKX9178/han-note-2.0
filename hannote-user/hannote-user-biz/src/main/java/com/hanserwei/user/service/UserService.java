@@ -3,11 +3,14 @@ package com.hanserwei.user.service;
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
+import com.hanserwei.user.api.dto.req.FindUsersByIdsReqDTO;
 import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
+
+import java.util.List;
 
 /**
  * 用户业务.
@@ -59,4 +62,12 @@ public interface UserService {
      * @return 用户信息
      */
     Response<FindUserByIdRspDTO> findById(FindUserByIdReqDTO findUserByIdReqDTO);
+
+    /**
+     * 批量根据用户 ID 查询用户信息（Redis multiGet + 回源 DB + pipeline 异步回写）.
+     *
+     * @param findUsersByIdsReqDTO 批量查询入参（ID 集合大小 [1, 10]）
+     * @return 用户信息列表
+     */
+    Response<List<FindUserByIdRspDTO>> findByIds(FindUsersByIdsReqDTO findUsersByIdsReqDTO);
 }

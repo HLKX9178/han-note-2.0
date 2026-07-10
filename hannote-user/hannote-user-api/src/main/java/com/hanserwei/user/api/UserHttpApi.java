@@ -3,6 +3,7 @@ package com.hanserwei.user.api;
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
+import com.hanserwei.user.api.dto.req.FindUsersByIdsReqDTO;
 import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
@@ -10,6 +11,8 @@ import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
+
+import java.util.List;
 
 /**
  * 用户服务对外契约（HTTP Interface）.
@@ -63,4 +66,13 @@ public interface UserHttpApi {
      */
     @PostExchange(PREFIX + "/findById")
     Response<FindUserByIdRspDTO> findById(@RequestBody FindUserByIdReqDTO findUserByIdReqDTO);
+
+    /**
+     * 批量根据用户 ID 查询用户信息（供关注/粉丝列表等场景 RPC 调用）.
+     *
+     * @param findUsersByIdsReqDTO 批量查询入参（ID 集合大小 [1, 10]）
+     * @return 用户信息列表（ID / 昵称 / 头像 / 简介）
+     */
+    @PostExchange(PREFIX + "/findByIds")
+    Response<List<FindUserByIdRspDTO>> findByIds(@RequestBody FindUsersByIdsReqDTO findUsersByIdsReqDTO);
 }

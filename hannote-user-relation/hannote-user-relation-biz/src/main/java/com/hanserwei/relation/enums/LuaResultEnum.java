@@ -25,6 +25,8 @@ public enum LuaResultEnum {
     FOLLOW_LIMIT(-2L),
     /** 已经关注了该用户 */
     ALREADY_FOLLOWED(-3L),
+    /** 未关注该用户（取关时校验） */
+    NOT_FOLLOWED(-4L),
     /** 关注成功 */
     FOLLOW_SUCCESS(0L),
     ;
