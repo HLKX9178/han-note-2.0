@@ -6,6 +6,7 @@ import com.hanserwei.count.model.dto.CountFollowUnfollowMqDTO;
 import com.hanserwei.count.util.FansCountAggregator;
 import com.hanserwei.framework.common.util.JsonUtils;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendCallback;
@@ -17,6 +18,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
+import reactor.core.Disposable;
 import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
@@ -51,11 +53,32 @@ public class CountFansConsumer implements RocketMQListener<String> {
     /** 聚合队列：满 1000 条或满 1s 触发一次批处理 */
     private final Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
 
+    /** bufferTimeout 订阅句柄，用于优雅关闭时释放 */
+    private Disposable subscription;
+
     @PostConstruct
     public void init() {
-        sink.asFlux()
+        subscription = sink.asFlux()
                 .bufferTimeout(1000, Duration.ofSeconds(1))
                 .subscribe(this::consumeBatch);
+    }
+
+    /**
+     * 优雅关闭：先补发完成信号，令 {@code bufferTimeout} 把缓冲区里尚未满 1000 条/未到 1s 的
+     * 剩余消息同步 flush 到 {@link #consumeBatch}（写 Redis + 转发落库 MQ），再释放订阅。
+     *
+     * <p>unicast sink 的完成信号在调用线程上同步传播，因此本方法返回前最后一批已处理完毕，
+     * 避免正常停机（重启/发版）时丢失缓冲中的粉丝计数。注意：进程硬崩仍会丢失缓冲区，
+     * 需由计数对账兜底任务补偿（本期范围外）。
+     */
+    @PreDestroy
+    public void shutdown() {
+        log.info("## CountFansConsumer 关闭：flush 聚合缓冲区剩余消息");
+        // 补发完成信号，触发 bufferTimeout 同步 flush 最后一批
+        sink.emitComplete(Sinks.EmitFailureHandler.busyLooping(Duration.ofSeconds(1)));
+        if (subscription != null) {
+            subscription.dispose();
+        }
     }
 
     @Override
