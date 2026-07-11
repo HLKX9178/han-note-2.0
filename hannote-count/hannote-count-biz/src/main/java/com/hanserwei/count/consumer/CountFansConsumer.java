@@ -90,9 +90,21 @@ public class CountFansConsumer implements RocketMQListener<String> {
     /**
      * 处理聚合批次：分组净算 → 写 Redis → 转发落库 MQ。
      *
+     * <p>整体包裹 try/catch 吞掉异常：本方法作为 {@code bufferTimeout} 订阅的 onNext 回调，
+     * 若异常外溢会触发 Flux 的 onError 使订阅永久终止，此后所有粉丝数消息将无人处理，
+     * 只能重启进程恢复。故此处宁可丢失本批（由计数对账兜底），也不能让管道断流。
+     *
      * @param bodyList 本批次原始消息体
      */
     private void consumeBatch(List<String> bodyList) {
+        try {
+            doConsumeBatch(bodyList);
+        } catch (Exception e) {
+            log.error("## 聚合粉丝数批处理失败（已吞掉，避免终止订阅）, size: {}", bodyList.size(), e);
+        }
+    }
+
+    private void doConsumeBatch(List<String> bodyList) {
         log.info("## 聚合粉丝数消息, size: {}", bodyList.size());
 
         // List<String> → List<CountFollowUnfollowMqDTO>
