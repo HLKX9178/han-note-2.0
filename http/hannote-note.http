@@ -265,3 +265,143 @@ userId: 999999
         client.assert(response.body.errorCode === "NOTE-20006", "预期 NOTE-20006，实际 " + response.body.errorCode);
     });
 %}
+
+### 15. 点赞笔记 —— 环境 note-direct
+# 前置：Redis 已加载 RedisBloom 模块；noteId 为一篇 status=1 的正常笔记
+POST {{noteHost}}{{noteBasePath}}/note/like
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("点赞成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 16. 重复点赞应返回 NOTE-20008 —— 环境 note-direct
+# 需先执行 #15 点赞成功后再执行本用例
+POST {{noteHost}}{{noteBasePath}}/note/like
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("重复点赞被拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "NOTE-20008", "预期 NOTE-20008，实际 " + response.body.errorCode);
+    });
+%}
+
+### 17. 取消点赞笔记 —— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/unlike
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("取消点赞成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 18. 取消未点赞的笔记应返回 NOTE-20009 —— 环境 note-direct
+# 重要：本用例必须针对「该用户【从未点赞过】的笔记」。
+# 布隆过滤器不支持删除：一旦点赞过某笔记，布隆会永久标记它，之后即使取消点赞，
+# 再调本接口也会命中「误判可容忍」分支、幂等返回 success。
+# 因此请：在 #15 点赞【之前】先跑本用例，或把下面 id 换成一个 68001 从未点赞过的笔记 ID。
+POST {{noteHost}}{{noteBasePath}}/note/unlike
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("取消未点赞被拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false（需针对从未点赞过的笔记）");
+        client.assert(response.body.errorCode === "NOTE-20009", "预期 NOTE-20009，实际 " + response.body.errorCode);
+    });
+%}
+
+### 19. 收藏笔记 —— 环境 note-direct
+# 前置：Redis 已加载 RedisBloom 模块；noteId 为一篇 status=1 的正常笔记
+POST {{noteHost}}{{noteBasePath}}/note/collect
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("收藏成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 20. 重复收藏应返回 NOTE-20010 —— 环境 note-direct
+# 需先执行 #19 收藏成功后再执行本用例
+POST {{noteHost}}{{noteBasePath}}/note/collect
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("重复收藏被拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+        client.assert(response.body.errorCode === "NOTE-20010", "预期 NOTE-20010，实际 " + response.body.errorCode);
+    });
+%}
+
+### 21. 取消收藏笔记 —— 环境 note-direct
+POST {{noteHost}}{{noteBasePath}}/note/uncollect
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("取消收藏成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+### 22. 取消未收藏的笔记应返回 NOTE-20011 —— 环境 note-direct
+# 重要：本用例必须针对「该用户【从未收藏过】的笔记」。
+# 布隆过滤器不支持删除：一旦收藏过某笔记，布隆会永久标记它，之后即使取消收藏，
+# 再调本接口也会命中「误判可容忍」分支、幂等返回 success。
+# 因此请：在 #19 收藏【之前】先跑本用例，或把下面 id 换成一个 68001 从未收藏过的笔记 ID。
+POST {{noteHost}}{{noteBasePath}}/note/uncollect
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "id": {{noteId}}
+}
+
+> {%
+    client.test("取消未收藏被拦截", function () {
+        client.assert(response.body.success === false, "预期 success=false（需针对从未收藏过的笔记）");
+        client.assert(response.body.errorCode === "NOTE-20011", "预期 NOTE-20011，实际 " + response.body.errorCode);
+    });
+%}

@@ -33,4 +33,53 @@ public interface MQConstants {
      * 故延时消费者独立成组。
      */
     String GROUP_DELAY_DELETE_NOTE_REDIS_CACHE = "hannote_group_delay_delete_redis_cache";
+
+    /**
+     * Topic 主题：笔记点赞 / 取消点赞（共用一个 Topic，用 Tag 区分）
+     */
+    String TOPIC_LIKE_UNLIKE = "LikeUnlikeTopic";
+
+    /** Tag 标签：点赞 */
+    String TAG_LIKE = "Like";
+
+    /** Tag 标签：取消点赞 */
+    String TAG_UNLIKE = "Unlike";
+
+    /** 点赞 / 取消点赞落库消费者组（顺序消费） */
+    String GROUP_LIKE_UNLIKE = "hannote_note_like_unlike_group";
+
+    /**
+     * Topic 主题：通知计数服务——笔记点赞数（笔记服务生产，计数服务消费）
+     */
+    String TOPIC_COUNT_NOTE_LIKE = "CountNoteLikeTopic";
+
+    /**
+     * Topic 主题：笔记收藏 / 取消收藏（共用一个 Topic，用 Tag 区分）
+     */
+    String TOPIC_COLLECT_UNCOLLECT = "CollectUnCollectTopic";
+
+    /** Tag 标签：收藏 */
+    String TAG_COLLECT = "Collect";
+
+    /** Tag 标签：取消收藏 */
+    String TAG_UNCOLLECT = "UnCollect";
+
+    /** 收藏 / 取消收藏落库消费者组（顺序消费） */
+    String GROUP_COLLECT_UNCOLLECT = "hannote_note_collect_uncollect_group";
+
+    /**
+     * Topic 主题：通知计数服务——笔记收藏数（笔记服务生产，计数服务消费）
+     */
+    String TOPIC_COUNT_NOTE_COLLECT = "CountNoteCollectTopic";
+
+    /**
+     * Topic 主题：笔记操作（发布 / 删除），用 Tag 区分，通知计数服务统计发布笔记数
+     */
+    String TOPIC_NOTE_OPERATE = "NoteOperateTopic";
+
+    /** Tag 标签：笔记发布 */
+    String TAG_NOTE_PUBLISH = "publishNote";
+
+    /** Tag 标签：笔记删除 */
+    String TAG_NOTE_DELETE = "deleteNote";
 }

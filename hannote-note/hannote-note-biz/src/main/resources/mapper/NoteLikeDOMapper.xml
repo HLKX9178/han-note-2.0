@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.note.domain.mapper.NoteLikeDOMapper">
+
+    <!--
+      新增或更新点赞记录（PostgreSQL upsert）。
+      命中 (user_id, note_id) 唯一索引 uk_note_like_user_note 时更新 status 与 create_time；
+      WHERE t_note_like.status <> EXCLUDED.status 幂等守卫：状态未变化（MQ 重复投递同一次点赞）
+      时不更新、影响行数为 0，避免消费端重复转发计数导致重复 +1。
+    -->
+    <insert id="insertOrUpdateLike" parameterType="com.hanserwei.note.domain.dataobject.NoteLikeDO">
+        INSERT INTO t_note_like (user_id, note_id, create_time, status)
+        VALUES (#{userId}, #{noteId}, #{createTime}, #{status})
+        ON CONFLICT (user_id, note_id)
+        DO UPDATE SET status = EXCLUDED.status, create_time = EXCLUDED.create_time
+        WHERE t_note_like.status <![CDATA[ <> ]]> EXCLUDED.status
+    </insert>
+
+</mapper>

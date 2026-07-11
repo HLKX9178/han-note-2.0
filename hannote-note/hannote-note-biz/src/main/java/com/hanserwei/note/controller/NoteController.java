@@ -2,11 +2,15 @@ package com.hanserwei.note.controller;
 
 import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
+import com.hanserwei.note.model.vo.LikeNoteReqVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
 import com.hanserwei.note.model.vo.TopNoteReqVO;
+import com.hanserwei.note.model.vo.UnCollectNoteReqVO;
+import com.hanserwei.note.model.vo.UnlikeNoteReqVO;
 import com.hanserwei.note.model.vo.UpdateNoteReqVO;
 import com.hanserwei.note.model.vo.UpdateNoteVisibleOnlyMeReqVO;
 import com.hanserwei.note.service.NoteService;
@@ -105,5 +109,53 @@ public class NoteController {
     @ApiOperationLog(description = "置顶/取消置顶笔记")
     public Response<?> topNote(@Validated @RequestBody TopNoteReqVO topNoteReqVO) {
         return noteService.topNote(topNoteReqVO);
+    }
+
+    /**
+     * 点赞笔记.
+     *
+     * @param likeNoteReqVO 点赞入参
+     * @return 操作结果
+     */
+    @PostMapping("/like")
+    @ApiOperationLog(description = "点赞笔记")
+    public Response<?> likeNote(@Validated @RequestBody LikeNoteReqVO likeNoteReqVO) {
+        return noteService.likeNote(likeNoteReqVO);
+    }
+
+    /**
+     * 取消点赞笔记.
+     *
+     * @param unlikeNoteReqVO 取消点赞入参
+     * @return 操作结果
+     */
+    @PostMapping("/unlike")
+    @ApiOperationLog(description = "取消点赞笔记")
+    public Response<?> unlikeNote(@Validated @RequestBody UnlikeNoteReqVO unlikeNoteReqVO) {
+        return noteService.unlikeNote(unlikeNoteReqVO);
+    }
+
+    /**
+     * 收藏笔记.
+     *
+     * @param collectNoteReqVO 收藏入参
+     * @return 操作结果
+     */
+    @PostMapping("/collect")
+    @ApiOperationLog(description = "收藏笔记")
+    public Response<?> collectNote(@Validated @RequestBody CollectNoteReqVO collectNoteReqVO) {
+        return noteService.collectNote(collectNoteReqVO);
+    }
+
+    /**
+     * 取消收藏笔记.
+     *
+     * @param unCollectNoteReqVO 取消收藏入参
+     * @return 操作结果
+     */
+    @PostMapping("/uncollect")
+    @ApiOperationLog(description = "取消收藏笔记")
+    public Response<?> unCollectNote(@Validated @RequestBody UnCollectNoteReqVO unCollectNoteReqVO) {
+        return noteService.unCollectNote(unCollectNoteReqVO);
     }
 }

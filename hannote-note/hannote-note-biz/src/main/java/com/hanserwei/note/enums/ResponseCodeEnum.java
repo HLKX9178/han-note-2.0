@@ -28,6 +28,10 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     TOPIC_NOT_FOUND("NOTE-20005", "话题不存在"),
     NOTE_CANT_OPERATE("NOTE-20006", "无法操作他人的笔记"),
     NOTE_CANT_VISIBLE_ONLY_ME("NOTE-20007", "此笔记无法修改为仅自己可见"),
+    NOTE_ALREADY_LIKED("NOTE-20008", "您已经点赞过该笔记"),
+    NOTE_NOT_LIKED("NOTE-20009", "您未点赞该篇笔记，无法取消点赞"),
+    NOTE_ALREADY_COLLECTED("NOTE-20010", "您已经收藏过该笔记"),
+    NOTE_NOT_COLLECTED("NOTE-20011", "您未收藏该篇笔记，无法取消收藏"),
     ;
 
     private final String errorCode;

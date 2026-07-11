@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.note.domain.mapper.NoteDOMapper">
+
+    <!-- 查询正常展示中的笔记发布者 ID（status = 1）；不存在返回 null -->
+    <select id="selectCreatorIdByNoteId" resultType="java.lang.Long">
+        SELECT creator_id
+        FROM t_note
+        WHERE id = #{noteId}
+          AND status = 1
+    </select>
+
+</mapper>

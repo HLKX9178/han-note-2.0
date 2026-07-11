@@ -1,11 +1,15 @@
 package com.hanserwei.note.service;
 
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
+import com.hanserwei.note.model.vo.LikeNoteReqVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
 import com.hanserwei.note.model.vo.TopNoteReqVO;
+import com.hanserwei.note.model.vo.UnCollectNoteReqVO;
+import com.hanserwei.note.model.vo.UnlikeNoteReqVO;
 import com.hanserwei.note.model.vo.UpdateNoteReqVO;
 import com.hanserwei.note.model.vo.UpdateNoteVisibleOnlyMeReqVO;
 
@@ -74,4 +78,36 @@ public interface NoteService {
      * @return 操作结果
      */
     Response<?> topNote(TopNoteReqVO topNoteReqVO);
+
+    /**
+     * 点赞笔记（布隆过滤器 + ZSET + DB 三级判重，顺序 MQ 异步落库）.
+     *
+     * @param likeNoteReqVO 点赞入参
+     * @return 操作结果
+     */
+    Response<?> likeNote(LikeNoteReqVO likeNoteReqVO);
+
+    /**
+     * 取消点赞笔记（布隆校验 + 删除 ZSET 成员，顺序 MQ 异步更新落库）.
+     *
+     * @param unlikeNoteReqVO 取消点赞入参
+     * @return 操作结果
+     */
+    Response<?> unlikeNote(UnlikeNoteReqVO unlikeNoteReqVO);
+
+    /**
+     * 收藏笔记（布隆过滤器 + ZSET + DB 三级判重，顺序 MQ 异步落库）.
+     *
+     * @param collectNoteReqVO 收藏入参
+     * @return 操作结果
+     */
+    Response<?> collectNote(CollectNoteReqVO collectNoteReqVO);
+
+    /**
+     * 取消收藏笔记（布隆校验 + 删除 ZSET 成员，顺序 MQ 异步更新落库）.
+     *
+     * @param unCollectNoteReqVO 取消收藏入参
+     * @return 操作结果
+     */
+    Response<?> unCollectNote(UnCollectNoteReqVO unCollectNoteReqVO);
 }
