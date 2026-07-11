@@ -4,6 +4,7 @@ import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
 import java.util.Map;
 
 public final class JsonUtils {
@@ -49,5 +50,23 @@ public final class JsonUtils {
         }
         return jsonMapper.readValue(json,
                 jsonMapper.getTypeFactory().constructMapType(Map.class, keyClass, valueClass));
+    }
+
+    /**
+     * 将 JSON 字符串解析为 {@code List<T>}。
+     *
+     * <p>基于 Jackson 3 的 {@code TypeFactory.constructCollectionType} 构造带泛型的 List 类型，
+     * 用于解析计数聚合消息体（如聚合后的 {@code List<AggregationCountNoteMqDTO>}）。
+     *
+     * @param json  JSON 字符串
+     * @param clazz List 元素类型
+     * @return 解析后的 List；json 为 null 或空时返回 {@code null}
+     */
+    public static <T> List<T> parseList(String json, Class<T> clazz) {
+        if (json == null || json.isEmpty()) {
+            return null;
+        }
+        return jsonMapper.readValue(json,
+                jsonMapper.getTypeFactory().constructCollectionType(List.class, clazz));
     }
 }
