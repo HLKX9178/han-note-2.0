@@ -10,21 +10,27 @@ import com.hanserwei.relation.domain.dataobject.FansDO;
 import com.hanserwei.relation.domain.dataobject.FollowingDO;
 import com.hanserwei.relation.domain.mapper.FansDOMapper;
 import com.hanserwei.relation.domain.mapper.FollowingDOMapper;
+import com.hanserwei.relation.enums.FollowUnfollowTypeEnum;
+import com.hanserwei.relation.model.dto.CountFollowUnfollowMqDTO;
 import com.hanserwei.relation.model.dto.FollowUserMqDTO;
 import com.hanserwei.relation.model.dto.UnfollowUserMqDTO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.client.producer.SendCallback;
+import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.spring.annotation.ConsumeMode;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.RecoverableDataAccessException;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -62,6 +68,7 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
     private final StringRedisTemplate stringRedisTemplate;
     private final RelationProperties relationProperties;
     private final RateLimiter followUnfollowRateLimiter;
+    private final RocketMQTemplate rocketMQTemplate;
 
     /** 更新粉丝 ZSET 的 Lua 脚本 */
     private static final DefaultRedisScript<Long> FANS_ZSET_SCRIPT = buildFansZsetScript();
@@ -130,6 +137,8 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
         // 落库成功才更新粉丝 ZSET（避免缓存与库不一致）
         if (isSuccess) {
             updateFansZset(userId, followUserId, createTime);
+            // 通知计数服务：关注数（userId 关注数 +1）、粉丝数（followUserId 粉丝数 +1）
+            sendCountMQ(userId, followUserId, FollowUnfollowTypeEnum.FOLLOW.getCode());
         }
     }
 
@@ -175,6 +184,8 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
         if (isSuccess) {
             String fansKey = RedisKeyConstants.buildUserFansKey(unfollowUserId);
             stringRedisTemplate.opsForZSet().remove(fansKey, String.valueOf(userId));
+            // 通知计数服务：关注数（userId 关注数 -1）、粉丝数（unfollowUserId 粉丝数 -1）
+            sendCountMQ(userId, unfollowUserId, FollowUnfollowTypeEnum.UNFOLLOW.getCode());
         }
     }
 
@@ -208,6 +219,52 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
         stringRedisTemplate.execute(FANS_ZSET_SCRIPT,
                 Collections.singletonList(fansKey),
                 String.valueOf(userId), String.valueOf(timestamp), String.valueOf(maxCacheCount));
+    }
+
+    /**
+     * 通知计数服务：发送 2 条计数 MQ（关注数 + 粉丝数）。
+     *
+     * <p>关注数与粉丝数由计数服务的不同消费者独立统计，故拆成两个 topic 各发一条，
+     * 消息体一致（同一 {@link CountFollowUnfollowMqDTO}）。异步发送，不阻塞消费主流程。
+     *
+     * @param userId       原用户 ID（发起关注/取关者）
+     * @param targetUserId 目标用户 ID（被关注/被取关者）
+     * @param type         操作类型：1 关注，0 取关
+     */
+    private void sendCountMQ(Long userId, Long targetUserId, Integer type) {
+        CountFollowUnfollowMqDTO dto = CountFollowUnfollowMqDTO.builder()
+                .userId(userId)
+                .targetUserId(targetUserId)
+                .type(type)
+                .build();
+        org.springframework.messaging.Message<String> message =
+                MessageBuilder.withPayload(JsonUtils.toJsonString(dto)).build();
+
+        // 关注数计数
+        rocketMQTemplate.asyncSend(MQConstants.TOPIC_COUNT_FOLLOWING, message, new SendCallback() {
+            @Override
+            public void onSuccess(SendResult sendResult) {
+                log.info("==> 【计数服务：关注数】MQ 发送成功, SendResult: {}", sendResult);
+            }
+
+            @Override
+            public void onException(Throwable throwable) {
+                log.error("==> 【计数服务：关注数】MQ 发送异常: ", throwable);
+            }
+        });
+
+        // 粉丝数计数
+        rocketMQTemplate.asyncSend(MQConstants.TOPIC_COUNT_FANS, message, new SendCallback() {
+            @Override
+            public void onSuccess(SendResult sendResult) {
+                log.info("==> 【计数服务：粉丝数】MQ 发送成功, SendResult: {}", sendResult);
+            }
+
+            @Override
+            public void onException(Throwable throwable) {
+                log.error("==> 【计数服务：粉丝数】MQ 发送异常: ", throwable);
+            }
+        });
     }
 
     private static DefaultRedisScript<Long> buildFansZsetScript() {

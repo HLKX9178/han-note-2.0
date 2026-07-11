@@ -35,4 +35,14 @@ public interface MQConstants {
      * 关注 / 取关消费者组
      */
     String GROUP_FOLLOW_UNFOLLOW_CONSUMER = "hannote_user_relation_follow_unfollow_group";
+
+    /**
+     * Topic 主题：关注数计数（通知计数服务）
+     */
+    String TOPIC_COUNT_FOLLOWING = "CountFollowingTopic";
+
+    /**
+     * Topic 主题：粉丝数计数（通知计数服务）
+     */
+    String TOPIC_COUNT_FANS = "CountFansTopic";
 }
