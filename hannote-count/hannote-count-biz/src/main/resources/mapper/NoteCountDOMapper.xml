@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.count.domain.mapper.NoteCountDOMapper">
+
+    <!-- 新增或累加笔记点赞总数：note_id 唯一索引冲突则在原值上累加 -->
+    <insert id="insertOrUpdateLikeTotalByNoteId">
+        INSERT INTO t_note_count (note_id, like_total)
+        VALUES (#{noteId}, #{count})
+        ON CONFLICT (note_id)
+        DO UPDATE SET like_total = t_note_count.like_total + #{count}
+    </insert>
+
+    <!-- 新增或累加笔记收藏总数：note_id 唯一索引冲突则在原值上累加 -->
+    <insert id="insertOrUpdateCollectTotalByNoteId">
+        INSERT INTO t_note_count (note_id, collect_total)
+        VALUES (#{noteId}, #{count})
+        ON CONFLICT (note_id)
+        DO UPDATE SET collect_total = t_note_count.collect_total + #{count}
+    </insert>
+
+</mapper>

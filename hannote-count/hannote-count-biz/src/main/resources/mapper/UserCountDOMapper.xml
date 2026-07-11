@@ -19,4 +19,28 @@
         DO UPDATE SET following_total = t_user_count.following_total + #{count}
     </insert>
 
+    <!-- 新增或累加用户获赞总数：user_id 唯一索引冲突则在原值上累加 -->
+    <insert id="insertOrUpdateLikeTotalByUserId">
+        INSERT INTO t_user_count (user_id, like_total)
+        VALUES (#{userId}, #{count})
+        ON CONFLICT (user_id)
+        DO UPDATE SET like_total = t_user_count.like_total + #{count}
+    </insert>
+
+    <!-- 新增或累加用户获藏总数：user_id 唯一索引冲突则在原值上累加 -->
+    <insert id="insertOrUpdateCollectTotalByUserId">
+        INSERT INTO t_user_count (user_id, collect_total)
+        VALUES (#{userId}, #{count})
+        ON CONFLICT (user_id)
+        DO UPDATE SET collect_total = t_user_count.collect_total + #{count}
+    </insert>
+
+    <!-- 新增或累加用户发布笔记总数：user_id 唯一索引冲突则在原值上累加 -->
+    <insert id="insertOrUpdateNoteTotalByUserId">
+        INSERT INTO t_user_count (user_id, note_total)
+        VALUES (#{userId}, #{count})
+        ON CONFLICT (user_id)
+        DO UPDATE SET note_total = t_user_count.note_total + #{count}
+    </insert>
+
 </mapper>

@@ -35,4 +35,40 @@ public interface MQConstants {
 
     /** 消费者组：关注数计数落库 */
     String GROUP_COUNT_FOLLOWING_2_DB = "hannote_count_following_2db_group";
+
+    /** Topic：笔记点赞数计数（写 Redis） */
+    String TOPIC_COUNT_NOTE_LIKE = "CountNoteLikeTopic";
+
+    /** Topic：笔记点赞数计数落库 */
+    String TOPIC_COUNT_NOTE_LIKE_2_DB = "CountNoteLike2DBTopic";
+
+    /** Topic：笔记收藏数计数（写 Redis） */
+    String TOPIC_COUNT_NOTE_COLLECT = "CountNoteCollectTopic";
+
+    /** Topic：笔记收藏数计数落库 */
+    String TOPIC_COUNT_NOTE_COLLECT_2_DB = "CountNoteCollect2DBTopic";
+
+    /** 消费者组：笔记点赞数计数 */
+    String GROUP_COUNT_NOTE_LIKE = "hannote_count_note_like_group";
+
+    /** 消费者组：笔记点赞数计数落库 */
+    String GROUP_COUNT_NOTE_LIKE_2_DB = "hannote_count_note_like_2db_group";
+
+    /** 消费者组：笔记收藏数计数 */
+    String GROUP_COUNT_NOTE_COLLECT = "hannote_count_note_collect_group";
+
+    /** 消费者组：笔记收藏数计数落库 */
+    String GROUP_COUNT_NOTE_COLLECT_2_DB = "hannote_count_note_collect_2db_group";
+
+    /** Topic：笔记操作（发布 / 删除），用 Tag 区分 */
+    String TOPIC_NOTE_OPERATE = "NoteOperateTopic";
+
+    /** Tag 标签：笔记发布 */
+    String TAG_NOTE_PUBLISH = "publishNote";
+
+    /** Tag 标签：笔记删除 */
+    String TAG_NOTE_DELETE = "deleteNote";
+
+    /** 消费者组：笔记发布数计数 */
+    String GROUP_COUNT_NOTE_OPERATE = "hannote_count_note_operate_group";
 }
