@@ -29,7 +29,7 @@ public enum FollowUnfollowTypeEnum {
      * @param code 操作类型 code
      * @return 匹配的枚举；无匹配返回 {@code null}
      */
-    public static FollowUnfollowTypeEnum of(Integer code) {
+    public static FollowUnfollowTypeEnum valueOf(Integer code) {
         for (FollowUnfollowTypeEnum typeEnum : values()) {
             if (Objects.equals(code, typeEnum.getCode())) {
                 return typeEnum;
