@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.count.domain.mapper.UserCountDOMapper">
+
+    <!-- 新增或累加粉丝总数：user_id 唯一索引冲突则在原值上累加 -->
+    <insert id="insertOrUpdateFansTotalByUserId">
+        INSERT INTO t_user_count (user_id, fans_total)
+        VALUES (#{userId}, #{count})
+        ON CONFLICT (user_id)
+        DO UPDATE SET fans_total = t_user_count.fans_total + #{count}
+    </insert>
+
+    <!-- 新增或累加关注总数：user_id 唯一索引冲突则在原值上累加 -->
+    <insert id="insertOrUpdateFollowingTotalByUserId">
+        INSERT INTO t_user_count (user_id, following_total)
+        VALUES (#{userId}, #{count})
+        ON CONFLICT (user_id)
+        DO UPDATE SET following_total = t_user_count.following_total + #{count}
+    </insert>
+
+</mapper>
