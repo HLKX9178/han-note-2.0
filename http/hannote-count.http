@@ -1,0 +1,158 @@
+### hannote 计数服务 关注数/粉丝数写入链路 接口测试（IntelliJ HTTP Client）
+#
+# 重要：计数服务(8087)本身没有 HTTP 接口，它是纯 RocketMQ 消费者。
+#       这条链路由「用户关系服务的关注/取关 HTTP 接口」触发，异步经 MQ 落到 Redis + PostgreSQL。
+#       因此本文件通过调用 relation 的 /follow、/unfollow 触发链路，
+#       再用文件内嵌的 redis-cli / psql 命令（注释）核对异步结果。
+#
+# 链路回顾：
+#   relation /follow 落库成功 → 发 2 条 MQ：
+#     CountFollowingTopic → CountFollowingConsumer  : HINCRBY 关注者 followingTotal（仅当 key 存在）→ 转发 CountFollowing2DBTopic → upsert following_total
+#     CountFansTopic      → CountFansConsumer(聚合) : 按 targetUserId 净算 → HINCRBY 被关注者 fansTotal（仅当 key 存在）→ 转发 CountFans2DBTopic → upsert fans_total
+#
+# 前置条件：
+#   - relation(8086) + count(8087) 均已启动，且 Nacos / PostgreSQL / Redis / RocketMQ 就绪。
+#   - userId({{userId}}) 与 followUserId({{followUserId}}) 都在 t_user 中存在，且二者未互相关注。
+#   - 环境选 count-verify（直连 relation 8086，手动补 userId 头模拟网关透传）。
+#     也可用 gateway 环境（需先跑 hannote-auth.http 登录写入 {{token}}）。
+#
+# 变量（http-client.env.json → count-verify）：
+#   {{relationHost}} = http://localhost:8086   {{relationBasePath}} = ""
+#   {{userId}}       = 关注发起者（其 following_total 变化）
+#   {{followUserId}} = 被关注者（其 fans_total 变化）
+#
+# 落库为最终真相；Redis HINCRBY 仅在 hash key 已存在时执行（本期不初始化缓存）。
+# 所以「只发生一次关注、缓存未预置」时：Redis 无变化，DB 有记录——这是预期行为，不是 bug。
+
+###############################################################################
+# 用例 1：关注 → 触发计数链路（关注者 following +1，被关注者 fans +1）
+###############################################################################
+
+### 1. 关注 followUserId —— 触发 2 条计数 MQ
+POST {{relationHost}}{{relationBasePath}}/relation/follow
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "followUserId": {{followUserId}}
+}
+
+> {%
+    client.test("关注成功（HTTP 层）", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+    client.log("已触发计数链路。等待约 1-2s 让 MQ 消费完成，再执行下方核对命令。");
+%}
+
+# ── 异步结果核对（在终端手动执行，HTTP Client 不查 DB/Redis）──────────────────
+#
+# ① 数据库：关注者 following_total 应 +1，被关注者 fans_total 应 +1
+#    psql "$PG_URL" -c "SELECT user_id, following_total, fans_total FROM t_user_count WHERE user_id IN ({{userId}}, {{followUserId}});"
+#      期望：user_id={{userId}} 的 following_total 比关注前 +1
+#           user_id={{followUserId}} 的 fans_total   比关注前 +1
+#
+# ② count 服务日志应出现：
+#      ## 消费到 MQ 【计数：关注数】
+#      ## 消费到 MQ 【计数：关注数入库】
+#      ## 聚合粉丝数消息, size: 1
+#      ## 消费到 MQ 【计数：粉丝数入库】
+#
+# ③ relation 服务日志应出现两条：
+#      ==> 【计数服务：关注数】MQ 发送成功
+#      ==> 【计数服务：粉丝数】MQ 发送成功
+#
+# ④ Redis：仅当对应 hash key 已存在才会更新（否则跳过，属正常）。
+#    redis-cli HGETALL hannote:count:count:user:{{userId}}        # 关注者，看 followingTotal
+#    redis-cli HGETALL hannote:count:count:user:{{followUserId}}  # 被关注者，看 fansTotal
+
+
+###############################################################################
+# 用例 2：取关 → 计数回落（关注者 following -1，被关注者 fans -1）
+###############################################################################
+
+### 2. 取关 followUserId —— 紧接用例 1 执行
+POST {{relationHost}}{{relationBasePath}}/relation/unfollow
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "unfollowUserId": {{followUserId}}
+}
+
+> {%
+    client.test("取关成功（HTTP 层）", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+    client.log("已触发计数回落。等待约 1-2s 后核对：following_total / fans_total 应各回落 1。");
+%}
+
+# ── 异步结果核对 ──────────────────────────────────────────────────────────────
+#    psql "$PG_URL" -c "SELECT user_id, following_total, fans_total FROM t_user_count WHERE user_id IN ({{userId}}, {{followUserId}});"
+#      期望：following_total / fans_total 相比用例 1 之后各 -1（回到关注前的值）。
+#    count 日志：type=0（取关）分支，关注数 -1、粉丝数聚合净算 -1。
+
+
+###############################################################################
+# 用例 3：预置 Redis 缓存后关注 —— 验证 HINCRBY 生效（hasKey 分支）
+###############################################################################
+
+# 说明：本期写路径「仅当 hash key 存在才 HINCRBY」。想观察 Redis 被更新，需先手动预置缓存。
+# 步骤（终端执行）：
+#   1) 预置两个用户的计数 hash（HINCRBY 要求字段是纯整数）：
+#        redis-cli HSET hannote:count:count:user:{{userId}}       followingTotal 0
+#        redis-cli HSET hannote:count:count:user:{{followUserId}} fansTotal      0
+#   2) 执行下面的关注请求
+#   3) 约 1-2s 后核对 Redis：
+#        redis-cli HGET hannote:count:count:user:{{userId}}       followingTotal   # 期望 1
+#        redis-cli HGET hannote:count:count:user:{{followUserId}} fansTotal        # 期望 1
+
+### 3. 预置缓存后关注 —— 观察 Redis HINCRBY
+POST {{relationHost}}{{relationBasePath}}/relation/follow
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "followUserId": {{followUserId}}
+}
+
+> {%
+    client.test("关注成功（HTTP 层）", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+    client.log("若已预置缓存：约 1-2s 后 followingTotal / fansTotal 应从 0 变 1。记得测完取关复位。");
+%}
+
+### 4. 复位：取关（紧接用例 3，避免脏数据影响重复测试）
+POST {{relationHost}}{{relationBasePath}}/relation/unfollow
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "unfollowUserId": {{followUserId}}
+}
+
+> {%
+    client.test("复位取关成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}
+
+###############################################################################
+# 用例 5（粉丝数聚合压测）：非 HTTP —— 用 relation 单测批量发 MQ
+###############################################################################
+#
+# 粉丝数聚合（bufferTimeout 1000 条 / 1s）无法用单条 HTTP 请求触发验证，
+# 需大量并发关注同一 targetUserId。��在 relation 模块写一个临时单测
+# 循环发 3200 条 CountFansTopic（同一 targetUserId=27，type=1），验证：
+#
+#   1) 预置缓存：redis-cli HSET hannote:count:count:user:27 fansTotal 0
+#   2) 运行临时单测发 3200 条
+#   3) count 日志出现四批聚合：size=1000 ×3 + size=200 ×1（验证「满 1000」与「1s 到点」两个触发条件）
+#   4) redis-cli HGET hannote:count:count:user:27 fansTotal        # 期望 3200
+#   5) psql "$PG_URL" -c "SELECT fans_total FROM t_user_count WHERE user_id=27;"   # 期望 3200
+#
+# 临时单测验证完请删除、不提交（属压测脚手架，非产品代码）。

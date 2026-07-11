@@ -10,6 +10,7 @@ http/
 ├── hannote-auth.http      # 认证服务 + 网关鉴权测试
 ├── hannote-oss.http       # 对象存储服务测试
 ├── hannote-user.http      # 用户服务测试（资料修改 + 内网 RPC 接口）
+├── hannote-count.http     # 计数服务 关注数/粉丝数写入链路测试（经 relation 触发 MQ，核对 Redis/DB）
 └── resources/             # 测试资源（上传用样本文件等）
     └── sample.png
 ```
