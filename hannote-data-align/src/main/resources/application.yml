@@ -1,0 +1,20 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: hannote-data-align
+  profiles:
+    active: dev
+  threads:
+    virtual:
+      enabled: true
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+# 日增量表分片数（本地默认值；生产托管于 Nacos 配置中心 hannote-data-align.yaml 动态刷新）
+table:
+  shards: 3

@@ -28,6 +28,7 @@
         <module>hannote-note</module>
         <module>hannote-user-relation</module>
         <module>hannote-count</module>
+        <module>hannote-data-align</module>
     </modules>
 
     <properties>
@@ -57,6 +58,9 @@
         <tencent-cos.version>5.6.265</tencent-cos.version>
         <!-- RocketMQ Spring Starter：2.3.0+ 原生支持 Spring Boot 3.x，提供 5.0 timer message API -->
         <rocketmq.version>2.3.6</rocketmq.version>
+
+        <!-- PowerJob 分布式任务调度（worker 版本须与本地 powerjob-server 一致） -->
+        <powerjob.version>5.1.2</powerjob.version>
 
         <!-- CoSId 分布式 ID 生成框架（适配 Spring Boot 4.1） -->
         <cosid.version>3.2.0</cosid.version>
@@ -193,6 +197,13 @@
                 <groupId>org.apache.rocketmq</groupId>
                 <artifactId>rocketmq-spring-boot-starter</artifactId>
                 <version>${rocketmq.version}</version>
+            </dependency>
+
+            <!-- PowerJob Worker：手动 @Bean 初始化执行器（不用 starter，规避 Boot 4.1 自动装配不兼容） -->
+            <dependency>
+                <groupId>tech.powerjob</groupId>
+                <artifactId>powerjob-worker</artifactId>
+                <version>${powerjob.version}</version>
             </dependency>
 
             <!-- CoSId BOM：统一管理 cosid-* 版本 -->

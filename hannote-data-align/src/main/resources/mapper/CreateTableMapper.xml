@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.dataalign.domain.mapper.CreateTableMapper">
+
+    <update id="createDataAlignFollowingCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_following_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            user_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
+    <update id="createDataAlignFansCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_fans_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            user_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
+    <update id="createDataAlignNoteCollectCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_note_collect_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            note_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
+    <update id="createDataAlignUserCollectCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_user_collect_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            user_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
+    <update id="createDataAlignUserLikeCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_user_like_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            user_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
+    <update id="createDataAlignNoteLikeCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_note_like_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            note_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
+    <update id="createDataAlignNotePublishCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_note_publish_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            user_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
+</mapper>

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-data-align</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>数据对齐服务：日增量 + 分片对齐，纠正计数漂移，保证最终一致。作者：Hanserwei</description>
+
+    <dependencies>
+        <!-- JSON 工具（JsonUtils）与通用能力 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+
+        <!-- Web（承载 Nacos 注册端口，与其它服务保持一致；本服务无对外接口） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus + PostgreSQL（动态临时表 DDL/DML 走自定义 XML） -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spring Data Redis + Lettuce 连接池（布隆过滤器 + 计数缓存回写） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+
+        <!-- 服务发现 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- 配置中心（分片数 table.shards 动态刷新） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
+        <!-- RocketMQ（消费计数链路 MQ，落库日增量变更） -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- PowerJob Worker（手动 @Bean 初始化，见 config/PowerJobWorkerConfig） -->
+        <dependency>
+            <groupId>tech.powerjob</groupId>
+            <artifactId>powerjob-worker</artifactId>
+        </dependency>
+
+        <!-- 集合工具 CollUtil -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

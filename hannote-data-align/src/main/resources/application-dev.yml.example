@@ -1,0 +1,73 @@
+spring:
+  # 从 Nacos 配置中心导入分片数配置（Spring Boot 4 原生方式，非 bootstrap.yml）
+  # optional: 前缀表示配置中心不可用时不阻断启动；本地 application.yml 已有 table.shards 默认值兜底
+  config:
+    import:
+      - optional:nacos:hannote-data-align.yaml?refresh=true
+  cloud:
+    nacos:
+      discovery:
+        server-addr: <nacos-addr>
+        namespace: hannote
+        group: DEFAULT_GROUP
+      config:
+        server-addr: <nacos-addr>       # 配置中心地址（通常与 discovery 相同）
+        namespace: hannote
+        group: DEFAULT_GROUP
+        file-extension: yaml
+
+  # PostgreSQL（数据对齐服务复用 hannote 库：直查源表、直写计数表）
+  datasource:
+    url: jdbc:postgresql://<pg-host>:5432/hannote
+    username: <pg-user>
+    password: <pg-password>
+    driver-class-name: org.postgresql.Driver
+
+  # Redis（布隆过滤器判重 + 计数缓存回写；需 RedisBloom 模块，已由 hannote-note 验证就绪）
+  data:
+    redis:
+      host: <redis-host>
+      port: 6379
+      password: <redis-password>
+      database: 0
+      timeout: 5s
+      connect-timeout: 5s
+      lettuce:
+        pool:
+          max-active: 200
+          max-wait: -1ms
+          min-idle: 0
+          max-idle: 10
+
+# RocketMQ（仅消费计数链路 MQ，不配置生产者）
+rocketmq:
+  name-server: <rocketmq-addr>:9876
+  consumer:
+    group: hannote_data_align_group
+    pull-batch-size: 5
+
+# PowerJob Worker（手动 @Bean 读取，见 config/PowerJobWorkerConfig）
+powerjob:
+  worker:
+    server-address: <powerjob-server-addr>:7700   # powerjob-server HTTP 端口默认 7700，多地址逗号分隔
+    app-name: hannote-data-align                   # 需与 powerjob-server 控制台已注册的应用名一致
+    port: 27777                                    # worker 通信端口
+    store-strategy: disk                           # disk / memory，任务信息落盘或纯内存
+
+logging:
+  level:
+    com.hanserwei.dataalign.domain.mapper: debug
+
+# ============================================================================
+# Nacos 配置中心 data-id 内容示例
+# ----------------------------------------------------------------------------
+# 在 Nacos 控制台新增配置：
+#   Data ID   : hannote-data-align.yaml
+#   Group     : DEFAULT_GROUP
+#   Namespace : hannote
+#   格式       : YAML
+# 内容如下（分片数集中托管，修改发布后经 @RefreshScope 动态生效，无需重启）：
+#
+#   table:
+#     shards: 3   # 日增量表分片数，一经上线不建议随意调整（会与历史建表后缀错配）
+# ============================================================================

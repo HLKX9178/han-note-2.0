@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.dataalign.domain.mapper.UpdateMapper">
+
+    <update id="updateUserFollowingTotal">
+        UPDATE t_user_count SET following_total = #{total} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateUserFansTotal">
+        UPDATE t_user_count SET fans_total = #{total} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateUserLikeTotal">
+        UPDATE t_user_count SET like_total = #{total} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateUserCollectTotal">
+        UPDATE t_user_count SET collect_total = #{total} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateUserNoteTotal">
+        UPDATE t_user_count SET note_total = #{total} WHERE user_id = #{userId}
+    </update>
+
+    <update id="updateNoteLikeTotal">
+        UPDATE t_note_count SET like_total = #{total} WHERE note_id = #{noteId}
+    </update>
+
+    <update id="updateNoteCollectTotal">
+        UPDATE t_note_count SET collect_total = #{total} WHERE note_id = #{noteId}
+    </update>
+
+</mapper>

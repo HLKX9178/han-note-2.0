@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.dataalign.domain.mapper.InsertMapper">
+
+    <insert id="insertFollowingCountTemp">
+        INSERT INTO t_data_align_following_count_temp_${tableNameSuffix} (user_id)
+        VALUES (#{userId}) ON CONFLICT (user_id) DO NOTHING
+    </insert>
+
+    <insert id="insertFansCountTemp">
+        INSERT INTO t_data_align_fans_count_temp_${tableNameSuffix} (user_id)
+        VALUES (#{userId}) ON CONFLICT (user_id) DO NOTHING
+    </insert>
+
+    <insert id="insertNoteLikeCountTemp">
+        INSERT INTO t_data_align_note_like_count_temp_${tableNameSuffix} (note_id)
+        VALUES (#{noteId}) ON CONFLICT (note_id) DO NOTHING
+    </insert>
+
+    <insert id="insertUserLikeCountTemp">
+        INSERT INTO t_data_align_user_like_count_temp_${tableNameSuffix} (user_id)
+        VALUES (#{userId}) ON CONFLICT (user_id) DO NOTHING
+    </insert>
+
+    <insert id="insertNoteCollectCountTemp">
+        INSERT INTO t_data_align_note_collect_count_temp_${tableNameSuffix} (note_id)
+        VALUES (#{noteId}) ON CONFLICT (note_id) DO NOTHING
+    </insert>
+
+    <insert id="insertUserCollectCountTemp">
+        INSERT INTO t_data_align_user_collect_count_temp_${tableNameSuffix} (user_id)
+        VALUES (#{userId}) ON CONFLICT (user_id) DO NOTHING
+    </insert>
+
+    <insert id="insertNotePublishCountTemp">
+        INSERT INTO t_data_align_note_publish_count_temp_${tableNameSuffix} (user_id)
+        VALUES (#{userId}) ON CONFLICT (user_id) DO NOTHING
+    </insert>
+
+</mapper>

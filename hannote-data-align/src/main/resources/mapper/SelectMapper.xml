@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.dataalign.domain.mapper.SelectMapper">
+
+    <!-- ================= 日增量临时表：分批查询变更 ID ================= -->
+
+    <select id="selectBatchFollowingCountTemp" resultType="long">
+        SELECT user_id FROM t_data_align_following_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
+    <select id="selectBatchFansCountTemp" resultType="long">
+        SELECT user_id FROM t_data_align_fans_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
+    <select id="selectBatchNoteLikeCountTemp" resultType="long">
+        SELECT note_id FROM t_data_align_note_like_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
+    <select id="selectBatchUserLikeCountTemp" resultType="long">
+        SELECT user_id FROM t_data_align_user_like_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
+    <select id="selectBatchNoteCollectCountTemp" resultType="long">
+        SELECT note_id FROM t_data_align_note_collect_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
+    <select id="selectBatchUserCollectCountTemp" resultType="long">
+        SELECT user_id FROM t_data_align_user_collect_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
+    <select id="selectBatchNotePublishCountTemp" resultType="long">
+        SELECT user_id FROM t_data_align_note_publish_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
+    <!-- ================= 源头表：count 真实值 ================= -->
+
+    <select id="countFollowingByUserId" resultType="int">
+        SELECT count(*) FROM t_following WHERE user_id = #{userId}
+    </select>
+
+    <select id="countFansByUserId" resultType="int">
+        SELECT count(*) FROM t_fans WHERE user_id = #{userId}
+    </select>
+
+    <select id="countNoteLikeByNoteId" resultType="int">
+        SELECT count(*) FROM t_note_like WHERE note_id = #{noteId} AND status = 1
+    </select>
+
+    <select id="countNoteCollectByNoteId" resultType="int">
+        SELECT count(*) FROM t_note_collection WHERE note_id = #{noteId} AND status = 1
+    </select>
+
+    <select id="countUserLikeByUserId" resultType="int">
+        SELECT count(*) FROM t_note_like nl
+        JOIN t_note n ON nl.note_id = n.id
+        WHERE n.creator_id = #{userId} AND nl.status = 1
+    </select>
+
+    <select id="countUserCollectByUserId" resultType="int">
+        SELECT count(*) FROM t_note_collection nc
+        JOIN t_note n ON nc.note_id = n.id
+        WHERE n.creator_id = #{userId} AND nc.status = 1
+    </select>
+
+    <select id="countNotePublishByUserId" resultType="int">
+        SELECT count(*) FROM t_note WHERE creator_id = #{userId} AND status = 1
+    </select>
+
+</mapper>
