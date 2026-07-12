@@ -15,6 +15,34 @@
     <name>${project.artifactId}</name>
     <description>数据对齐服务：日增量 + 分片对齐，纠正计数漂移，保证最终一致。作者：Hanserwei</description>
 
+    <dependencyManagement>
+        <dependencies>
+            <!--
+              okhttp/okio 版本对齐：PowerJob worker 传递 okhttp:4.12.0，而 OpenTelemetry
+              （经 nacos-client）传递 okhttp-jvm:5.3.2；两者都落在 okhttp3 包，类加载不确定。
+              同时 nacos 的 grpc 链把 okio 就近降到 3.4.0，导致运行期实际加载的 okhttp 5.3.2
+              调用 okio 3.16 才有的 Okio.socket(Socket) → NoSuchMethodError，worker 启动失败。
+              统一到 okhttp 5.3.2 + okio 3.16.4（okhttp 5.3.2 自身声明的 okio 版本），
+              PowerJob 5.1.2 在 okhttp 5.3.2 下可正常初始化（仅缺兼容的 okio）。
+            -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>5.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>3.16.4</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio-jvm</artifactId>
+                <version>3.16.4</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- JSON 工具（JsonUtils）与通用能力 -->
         <dependency>
