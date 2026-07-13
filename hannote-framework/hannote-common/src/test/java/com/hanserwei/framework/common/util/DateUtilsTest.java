@@ -29,4 +29,35 @@ class DateUtilsTest {
         assertThat(DateUtils.localDateTime2Timestamp(later))
                 .isGreaterThan(DateUtils.localDateTime2Timestamp(earlier));
     }
+
+    @Test
+    void localDateTime2String_and_parse_roundTrip() {
+        LocalDateTime dt = LocalDateTime.of(2026, 7, 13, 20, 12, 55);
+        String text = DateUtils.localDateTime2String(dt);
+        assertThat(text).isEqualTo("2026-07-13 20:12:55");
+        assertThat(DateUtils.parseFromEsDateTime(text)).isEqualTo(dt);
+    }
+
+    @Test
+    void formatRelativeTime_recentBuckets() {
+        LocalDateTime now = LocalDateTime.now();
+        assertThat(DateUtils.formatRelativeTime(now.minusSeconds(10))).isEqualTo("刚刚");
+        assertThat(DateUtils.formatRelativeTime(now.minusMinutes(5))).isEqualTo("5分钟前");
+        assertThat(DateUtils.formatRelativeTime(now.minusHours(3))).isEqualTo("3小时前");
+        assertThat(DateUtils.formatRelativeTime(now.minusDays(3))).isEqualTo("3天前");
+        // 未来时间按「刚刚」兜底
+        assertThat(DateUtils.formatRelativeTime(now.plusMinutes(5))).isEqualTo("刚刚");
+    }
+
+    @Test
+    void formatRelativeTime_yesterdayShowsHourMinute() {
+        LocalDateTime yesterday = LocalDateTime.now().minusHours(30);
+        assertThat(DateUtils.formatRelativeTime(yesterday)).startsWith("昨天 ");
+    }
+
+    @Test
+    void formatRelativeTime_pastYearShowsFullDate() {
+        LocalDateTime old = LocalDateTime.of(2023, 12, 1, 8, 0, 0);
+        assertThat(DateUtils.formatRelativeTime(old)).isEqualTo("2023-12-01");
+    }
 }

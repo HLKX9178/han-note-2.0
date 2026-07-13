@@ -29,6 +29,7 @@
         <module>hannote-user-relation</module>
         <module>hannote-count</module>
         <module>hannote-data-align</module>
+        <module>hannote-search</module>
     </modules>
 
     <properties>
@@ -67,6 +68,10 @@
 
         <!-- Caffeine 本地缓存（JDK 25 兼容） -->
         <caffeine.version>3.2.2</caffeine.version>
+
+        <!-- Elasticsearch 官方新 Java 客户端（co.elastic.clients），版本与 ES 服务端 9.4.3 一致；
+             替代已被 ES 9.x 移除的 RestHighLevelClient -->
+        <elasticsearch-java.version>9.4.3</elasticsearch-java.version>
 
         <!-- 插件版本 -->
         <maven-compiler-plugin.version>3.14.0</maven-compiler-plugin.version>
@@ -197,6 +202,13 @@
                 <groupId>org.apache.rocketmq</groupId>
                 <artifactId>rocketmq-spring-boot-starter</artifactId>
                 <version>${rocketmq.version}</version>
+            </dependency>
+
+            <!-- Elasticsearch 官方新 Java 客户端：搜索服务用它构建 note/user 分词搜索请求 -->
+            <dependency>
+                <groupId>co.elastic.clients</groupId>
+                <artifactId>elasticsearch-java</artifactId>
+                <version>${elasticsearch-java.version}</version>
             </dependency>
 
             <!-- PowerJob Worker：手动 @Bean 初始化执行器（不用 starter，规避 Boot 4.1 自动装配不兼容） -->
