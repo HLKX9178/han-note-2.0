@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.search.domain.mapper.SelectMapper">
+
+    <!-- 笔记索引全字段（列别名 = ES 索引字段名，snake_case） -->
+    <select id="selectEsNoteIndexData" resultType="java.util.Map">
+        select n.id                                                as id,
+               coalesce(split_part(n.img_uris, ',', 1), '')        as cover,
+               n.title                                             as title,
+               coalesce(n.topic_name, '')                          as topic,
+               n.type                                              as type,
+               u.nickname                                          as creator_nickname,
+               u.avatar                                            as creator_avatar,
+               to_char(n.create_time, 'YYYY-MM-DD HH24:MI:SS')     as create_time,
+               to_char(n.update_time, 'YYYY-MM-DD HH24:MI:SS')     as update_time,
+               coalesce(nc.like_total, 0)                          as like_total,
+               coalesce(nc.collect_total, 0)                       as collect_total,
+               coalesce(nc.comment_total, 0)                       as comment_total
+        from t_note n
+                 left join t_user u on n.creator_id = u.id
+                 left join t_note_count nc on n.id = nc.note_id
+        where n.visible = 0
+          and n.status = 1
+        <if test="noteId != null">
+          and n.id = #{noteId}
+        </if>
+        <if test="userId != null">
+          and u.id = #{userId}
+        </if>
+        order by n.id
+    </select>
+
+    <!-- 用户索引全字段 -->
+    <select id="selectEsUserIndexData" resultType="java.util.Map">
+        select u.id                          as id,
+               u.nickname                    as nickname,
+               u.avatar                      as avatar,
+               u.hannote_id                  as hannote_id,
+               coalesce(uc.note_total, 0)    as note_total,
+               coalesce(uc.fans_total, 0)    as fans_total
+        from t_user u
+                 left join t_user_count uc on u.id = uc.user_id
+        where u.status = 0
+          and u.is_deleted = false
+          and u.id = #{userId}
+    </select>
+
+</mapper>

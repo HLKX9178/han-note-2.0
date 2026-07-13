@@ -2,6 +2,7 @@ package com.hanserwei.dataalign.processor;
 
 import cn.hutool.core.collection.CollUtil;
 import com.hanserwei.dataalign.constant.TableConstants;
+import com.hanserwei.dataalign.enums.EsSyncDimensionEnum;
 import com.hanserwei.dataalign.model.task.AlignShardTask;
 import com.hanserwei.dataalign.processor.support.CountAlignSupport;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -111,6 +112,8 @@ public abstract class AbstractCountAlignProcessor implements MapReduceProcessor 
                     if (Boolean.TRUE.equals(redisTemplate.hasKey(cacheKey))) {
                         redisTemplate.opsForHash().put(cacheKey, cacheField(), total);
                     }
+                    // 通知搜索服务刷新 ES 索引中冗余的计数（仅笔记/用户维度，尽力而为）
+                    notifySearchEsSync(id);
                 }
             }
 
@@ -123,10 +126,29 @@ public abstract class AbstractCountAlignProcessor implements MapReduceProcessor 
         return processedTotal;
     }
 
+    /**
+     * 计数对齐成功后，按维度通知搜索服务重建对应文档以刷新 ES 冗余计数。
+     */
+    private void notifySearchEsSync(long id) {
+        switch (esSyncDimension()) {
+            case NOTE -> support.getSearchEsSyncSender().syncNote(id);
+            case USER -> support.getSearchEsSyncSender().syncUser(id);
+            case NONE -> { /* 该计数不在 ES 索引中，无需同步 */ }
+        }
+    }
+
     // ------------------------- 子类提供的每维度差异 -------------------------
 
     /** 任务名（日志标识） */
     protected abstract String taskName();
+
+    /**
+     * 本对齐任务的计数对应哪个 ES 索引维度（决定是否/如何通知搜索服务）。
+     * 默认 {@link EsSyncDimensionEnum#NONE}（不涉及 ES）。
+     */
+    protected EsSyncDimensionEnum esSyncDimension() {
+        return EsSyncDimensionEnum.NONE;
+    }
 
     /** 分批查询日增量表，返回变更的 ID 列表 */
     protected abstract List<Long> selectBatch(String tableNameSuffix, int batchSize);

@@ -1,6 +1,7 @@
 package com.hanserwei.dataalign.processor;
 
 import com.hanserwei.dataalign.constant.RedisKeyConstants;
+import com.hanserwei.dataalign.enums.EsSyncDimensionEnum;
 import com.hanserwei.dataalign.processor.support.CountAlignSupport;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +26,11 @@ public class NotePublishCountAlignProcessor extends AbstractCountAlignProcessor 
     @Override
     protected String taskName() {
         return "发布笔记数对齐";
+    }
+
+    @Override
+    protected EsSyncDimensionEnum esSyncDimension() {
+        return EsSyncDimensionEnum.USER;
     }
 
     @Override

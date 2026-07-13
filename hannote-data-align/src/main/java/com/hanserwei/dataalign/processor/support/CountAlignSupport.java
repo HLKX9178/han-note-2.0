@@ -29,4 +29,6 @@ public class CountAlignSupport {
     private final DeleteMapper deleteMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final TableShardProperties tableShardProperties;
+    /** 计数对齐后通知搜索服务刷新 ES 计数 */
+    private final SearchEsSyncSender searchEsSyncSender;
 }

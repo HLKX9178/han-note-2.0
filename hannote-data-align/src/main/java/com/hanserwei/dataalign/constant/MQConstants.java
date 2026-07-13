@@ -40,4 +40,19 @@ public interface MQConstants {
 
     /** 消费者组：关注/取关日增量落库 */
     String GROUP_DATA_ALIGN_FOLLOWING = "hannote_data_align_following_group";
+
+    // ------------------------- 生产者：计数对齐后通知搜索服务刷新 ES 计数 -------------------------
+    // Topic / Tag 须与搜索服务 com.hanserwei.search.constant.MQConstants 逐字一致
+
+    /** Topic：笔记 ES 索引同步 */
+    String TOPIC_NOTE_SYNC_ES = "NoteSyncEsTopic";
+
+    /** Tag：重建笔记 ES 文档 */
+    String TAG_NOTE_REBUILD = "rebuild";
+
+    /** Topic：用户 ES 索引同步 */
+    String TOPIC_USER_SYNC_ES = "UserSyncEsTopic";
+
+    /** Tag：仅重建用户 ES 文档 */
+    String TAG_USER_REBUILD = "rebuildUser";
 }
