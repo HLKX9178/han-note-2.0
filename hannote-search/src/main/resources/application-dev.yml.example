@@ -1,0 +1,16 @@
+# 复制为 application-dev.yml 并填入真实值（真实文件已被 .gitignore 忽略）
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: <nacos-addr>          # 如 127.0.0.1:8848
+        namespace: hannote
+        group: DEFAULT_GROUP
+
+# Elasticsearch 连接（无鉴权 dev 集群）
+elasticsearch:
+  address: <es-host>:9200                  # 如 192.168.1.117:9200
+
+logging:
+  level:
+    com.hanserwei.search: info

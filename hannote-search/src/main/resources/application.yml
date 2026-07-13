@@ -1,0 +1,11 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: hannote-search
+  profiles:
+    active: dev
+  threads:
+    virtual:
+      enabled: true
