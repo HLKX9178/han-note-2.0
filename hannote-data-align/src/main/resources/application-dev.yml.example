@@ -42,6 +42,13 @@ spring:
 # RocketMQ（仅消费计数链路 MQ，不配置生产者）
 rocketmq:
   name-server: <rocketmq-addr>:9876
+  # 生产者：计数对齐后通知搜索服务刷新 ES 计数
+  producer:
+    group: hannote_data_align_producer_group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 3
+    retry-times-when-send-async-failed: 3
+    max-message-size: 4096
   consumer:
     group: hannote_data_align_group
     pull-batch-size: 5

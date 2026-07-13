@@ -18,6 +18,7 @@ import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
+import com.hanserwei.user.constant.MQConstants;
 import com.hanserwei.user.constant.RedisKeyConstants;
 import com.hanserwei.user.constant.RoleConstants;
 import com.hanserwei.user.domain.dataobject.RoleDO;
@@ -35,7 +36,12 @@ import com.hanserwei.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.rocketmq.client.producer.SendCallback;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.jspecify.annotations.NonNull;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
@@ -78,6 +84,7 @@ public class UserServiceImpl implements UserService {
     private final DistributedIdRpcService distributedIdRpcService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final TransactionTemplate transactionTemplate;
+    private final RocketMQTemplate rocketMQTemplate;
     /** 缓存回写执行器（虚拟线程，见 AsyncConfig） */
     private final ExecutorService cacheWriteExecutor;
 
@@ -166,6 +173,14 @@ public class UserServiceImpl implements UserService {
         if (needUpdate) {
             userDO.setUpdateTime(LocalDateTime.now());
             userDOMapper.updateById(userDO);
+
+            // 通知搜索服务重建用户 ES 文档；昵称 / 头像变更时连带重建该用户全部笔记文档
+            // （笔记索引冗余了 creator_nickname / creator_avatar）
+            boolean creatorFieldChanged = Objects.nonNull(avatarFile) || StringUtils.isNotBlank(nickname);
+            String tag = creatorFieldChanged
+                    ? MQConstants.TAG_SYNC_ES_REBUILD_USER_AND_NOTES
+                    : MQConstants.TAG_SYNC_ES_REBUILD_USER;
+            sendUserSyncEsMq(userDO.getId(), tag);
         }
         return Response.success();
     }
@@ -231,7 +246,34 @@ public class UserServiceImpl implements UserService {
         List<String> roleKeys = new ArrayList<>(List.of(RoleConstants.COMMON_USER_ROLE_KEY));
         redisTemplate.opsForValue().set(RedisKeyConstants.buildUserRoleKey(phone), JsonUtils.toJsonString(roleKeys));
 
+        // 5. 通知搜索服务重建用户 ES 文档（事务已提交，新用户暂无笔记，仅重建用户文档）
+        sendUserSyncEsMq(userId, MQConstants.TAG_SYNC_ES_REBUILD_USER);
+
         return Response.success(userId);
+    }
+
+    /**
+     * 发送用户 ES 同步消息（顺序发送，hashKey=userId）.
+     *
+     * @param userId 用户 ID
+     * @param tag    {@link MQConstants#TAG_SYNC_ES_REBUILD_USER} 或
+     *               {@link MQConstants#TAG_SYNC_ES_REBUILD_USER_AND_NOTES}
+     */
+    private void sendUserSyncEsMq(Long userId, String tag) {
+        Message<String> message = MessageBuilder.withPayload(String.valueOf(userId)).build();
+        String destination = MQConstants.TOPIC_USER_SYNC_ES + ":" + tag;
+
+        rocketMQTemplate.asyncSendOrderly(destination, message, String.valueOf(userId), new SendCallback() {
+            @Override
+            public void onSuccess(SendResult sendResult) {
+                log.info("==> 【用户：ES 同步-{}】MQ 发送成功, userId: {}", tag, userId);
+            }
+
+            @Override
+            public void onException(Throwable throwable) {
+                log.error("==> 【用户：ES 同步-{}】MQ 发送异常, userId: {}", tag, userId, throwable);
+            }
+        });
     }
 
     @Override

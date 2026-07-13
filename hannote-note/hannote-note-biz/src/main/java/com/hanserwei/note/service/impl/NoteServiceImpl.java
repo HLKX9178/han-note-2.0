@@ -64,6 +64,8 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -222,6 +224,9 @@ public class NoteServiceImpl implements NoteService {
 
         // 8. 发送 MQ，通知计数服务：发布者发布笔记数 +1
         sendNoteOperateMq(creatorId, noteId, NoteOperateEnum.PUBLISH);
+
+        // 9. 发送 MQ，通知搜索服务：重建笔记 ES 文档（非事务方法，直接发）
+        sendNoteSyncEsMqAfterCommit(noteId, MQConstants.TAG_SYNC_ES_REBUILD);
 
         return Response.success();
     }
@@ -385,6 +390,9 @@ public class NoteServiceImpl implements NoteService {
             }
         });
 
+        // 11. 发送 MQ，通知搜索服务：重建笔记 ES 文档（事务提交后再发，避免消费端重查到未提交数据）
+        sendNoteSyncEsMqAfterCommit(noteId, MQConstants.TAG_SYNC_ES_REBUILD);
+
         return Response.success();
     }
 
@@ -420,6 +428,9 @@ public class NoteServiceImpl implements NoteService {
         // 发送 MQ，通知计数服务：发布者发布笔记数 -1（能删成功说明 currentUserId 即发布者）
         sendNoteOperateMq(currentUserId, noteId, NoteOperateEnum.DELETE);
 
+        // 发送 MQ，通知搜索服务：删除笔记 ES 文档（事务提交后再发，避免回滚后误删）
+        sendNoteSyncEsMqAfterCommit(noteId, MQConstants.TAG_SYNC_ES_DELETE);
+
         return Response.success();
     }
 
@@ -445,6 +456,9 @@ public class NoteServiceImpl implements NoteService {
         // 删 Redis 缓存 + 广播删各实例 L1
         redisTemplate.delete(RedisKeyConstants.buildNoteDetailKey(noteId));
         broadcastDeleteLocalCache(noteId);
+
+        // 发送 MQ，通知搜索服务：转仅自己可见=从公开索引移除，删除笔记 ES 文档（事务提交后再发）
+        sendNoteSyncEsMqAfterCommit(noteId, MQConstants.TAG_SYNC_ES_DELETE);
 
         return Response.success();
     }
@@ -1196,6 +1210,48 @@ public class NoteServiceImpl implements NoteService {
             @Override
             public void onException(Throwable throwable) {
                 log.error("==> 【笔记{}：计数】MQ 发送异常: ", desc, throwable);
+            }
+        });
+    }
+
+    /**
+     * 通知搜索服务同步笔记 ES 文档.
+     *
+     * <p>若当前处于事务中，注册事务提交后回调再发送（避免消费端重查到未提交/已回滚数据）；
+     * 否则直接发送。同一 noteId 顺序发送，保证 rebuild/delete 事件不乱序。
+     *
+     * @param noteId 笔记 ID
+     * @param tag    {@link MQConstants#TAG_SYNC_ES_REBUILD} 或 {@link MQConstants#TAG_SYNC_ES_DELETE}
+     */
+    private void sendNoteSyncEsMqAfterCommit(Long noteId, String tag) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    sendNoteSyncEsMq(noteId, tag);
+                }
+            });
+        } else {
+            sendNoteSyncEsMq(noteId, tag);
+        }
+    }
+
+    /**
+     * 发送笔记 ES 同步消息（顺序发送，hashKey=noteId）.
+     */
+    private void sendNoteSyncEsMq(Long noteId, String tag) {
+        Message<String> message = MessageBuilder.withPayload(String.valueOf(noteId)).build();
+        String destination = MQConstants.TOPIC_NOTE_SYNC_ES + ":" + tag;
+
+        rocketMQTemplate.asyncSendOrderly(destination, message, String.valueOf(noteId), new SendCallback() {
+            @Override
+            public void onSuccess(SendResult sendResult) {
+                log.info("==> 【笔记：ES 同步-{}】MQ 发送成功, noteId: {}", tag, noteId);
+            }
+
+            @Override
+            public void onException(Throwable throwable) {
+                log.error("==> 【笔记：ES 同步-{}】MQ 发送异常, noteId: {}", tag, noteId, throwable);
             }
         });
     }

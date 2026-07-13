@@ -82,4 +82,17 @@ public interface MQConstants {
 
     /** Tag 标签：笔记删除 */
     String TAG_NOTE_DELETE = "deleteNote";
+
+    /**
+     * Topic 主题：笔记 ES 索引同步（笔记服务生产，搜索服务消费），用 Tag 区分重建 / 删除.
+     *
+     * <p>顺序发送（hashKey=noteId），保证同一笔记的 rebuild/delete 事件不乱序。
+     */
+    String TOPIC_NOTE_SYNC_ES = "NoteSyncEsTopic";
+
+    /** Tag 标签：重建笔记 ES 文档（发布 / 编辑） */
+    String TAG_SYNC_ES_REBUILD = "rebuild";
+
+    /** Tag 标签：删除笔记 ES 文档（删除 / 转仅自己可见） */
+    String TAG_SYNC_ES_DELETE = "delete";
 }

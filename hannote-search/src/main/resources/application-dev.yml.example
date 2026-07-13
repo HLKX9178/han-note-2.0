@@ -7,9 +7,28 @@ spring:
         namespace: hannote
         group: DEFAULT_GROUP
 
+  # PostgreSQL（增量同步时重查笔记/用户索引全字段，复用 hannote 库）
+  datasource:
+    url: jdbc:postgresql://<pg-host>:5432/hannote
+    username: <pg-user>
+    password: <pg-password>
+    driver-class-name: org.postgresql.Driver
+
 # Elasticsearch 连接（无鉴权 dev 集群）
 elasticsearch:
   address: <es-host>:9200                  # 如 192.168.1.117:9200
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: false
+
+# RocketMQ（仅消费者：消费笔记/用户变更事件同步 ES 索引）
+rocketmq:
+  name-server: <rocketmq-name-server>      # 如 127.0.0.1:9876
+  consumer:
+    group: hannote_search_group
+    pull-batch-size: 10
 
 logging:
   level:
