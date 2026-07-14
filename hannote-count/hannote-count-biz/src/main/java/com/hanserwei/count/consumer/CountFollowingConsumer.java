@@ -4,12 +4,13 @@ import com.hanserwei.count.constant.MQConstants;
 import com.hanserwei.count.constant.RedisKeyConstants;
 import com.hanserwei.count.enums.FollowUnfollowTypeEnum;
 import com.hanserwei.count.model.dto.CountFollowUnfollowMqDTO;
+import com.hanserwei.count.util.FollowUnfollowSourceParser;
 import com.hanserwei.framework.common.util.JsonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -18,16 +19,22 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
- * 计数：关注数消费者.
+ * 计数：关注数消费者（并行直消费源 Topic）.
  *
  * <p>关注数并发低（单用户无法短时间内关注大量用户），无需聚合，直接对 Redis Hash 的
  * {@code followingTotal} 字段 +1/-1（仅当 key 存在），随后转发落库 MQ。
  *
+ * <p>已改为**并行直消费源 Topic** {@link MQConstants#TOPIC_FOLLOW_OR_UNFOLLOW}（与 relation 落库
+ * 消费者并行）。源体按 Tag 区分，经 {@link FollowUnfollowSourceParser} 归一化为
+ * {@link CountFollowUnfollowMqDTO} 后沿用原计数逻辑；转发落库仍用归一化后的计数 DTO 体。
+ * 幂等门移除的短时计数漂移由 hannote-data-align 日次纠偏自愈。
+ *
  * @author hanserwei
- * @date 2026/07/11
+ * @date 2026/07/14
  * @since 0.0.1
  */
 @Slf4j
@@ -35,20 +42,20 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @RocketMQMessageListener(
         consumerGroup = MQConstants.GROUP_COUNT_FOLLOWING,
-        topic = MQConstants.TOPIC_COUNT_FOLLOWING)
-public class CountFollowingConsumer implements RocketMQListener<String> {
+        topic = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW)
+public class CountFollowingConsumer implements RocketMQListener<MessageExt> {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final RocketMQTemplate rocketMQTemplate;
 
     @Override
-    public void onMessage(String body) {
-        log.info("## 消费到 MQ 【计数：关注数】: {}", body);
-        if (StringUtils.isBlank(body)) {
-            return;
-        }
+    public void onMessage(MessageExt message) {
+        String body = new String(message.getBody(), StandardCharsets.UTF_8);
+        String tags = message.getTags();
+        log.info("## 消费到 MQ 【计数：关注数】源事件: {}, tags: {}", body, tags);
 
-        CountFollowUnfollowMqDTO dto = JsonUtils.parseObject(body, CountFollowUnfollowMqDTO.class);
+        // 源体按 Tag 归一化为计数 DTO
+        CountFollowUnfollowMqDTO dto = FollowUnfollowSourceParser.parse(tags, body);
         if (Objects.isNull(dto)) {
             return;
         }
@@ -63,9 +70,9 @@ public class CountFollowingConsumer implements RocketMQListener<String> {
             redisTemplate.opsForHash().increment(redisKey, RedisKeyConstants.FIELD_FOLLOWING_TOTAL, count);
         }
 
-        // 转发落库 MQ（原样透传消息体）
-        Message<String> message = MessageBuilder.withPayload(body).build();
-        rocketMQTemplate.asyncSend(MQConstants.TOPIC_COUNT_FOLLOWING_2_DB, message, new SendCallback() {
+        // 转发落库 MQ（归一化后的计数 DTO 体，2DB 消费者按此解析）
+        Message<String> outMessage = MessageBuilder.withPayload(JsonUtils.toJsonString(dto)).build();
+        rocketMQTemplate.asyncSend(MQConstants.TOPIC_COUNT_FOLLOWING_2_DB, outMessage, new SendCallback() {
             @Override
             public void onSuccess(SendResult sendResult) {
                 log.info("==> 【计数服务：关注数入库】MQ 发送成功, SendResult: {}", sendResult);

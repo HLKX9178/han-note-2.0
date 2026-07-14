@@ -4,6 +4,7 @@ import com.hanserwei.count.constant.MQConstants;
 import com.hanserwei.count.constant.RedisKeyConstants;
 import com.hanserwei.count.model.dto.CountFollowUnfollowMqDTO;
 import com.hanserwei.count.util.FansCountAggregator;
+import com.hanserwei.count.util.FollowUnfollowSourceParser;
 import com.hanserwei.framework.common.util.JsonUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -21,9 +23,11 @@ import org.springframework.stereotype.Component;
 import reactor.core.Disposable;
 import reactor.core.publisher.Sinks;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 计数：粉丝数消费者（高并发，Reactor 聚合写）.
@@ -35,6 +39,11 @@ import java.util.Map;
  * <p>RocketMQ 多线程回调 {@link #onMessage}，而 Reactor {@code Sinks} emit 非并发安全，
  * 故用 {@code emitNext + busyLooping} 处理并发竞争。
  *
+ * <p>已改为**并行直消费源 Topic** {@link MQConstants#TOPIC_FOLLOW_OR_UNFOLLOW}（与 relation 落库
+ * 消费者并行）。源体按 Tag 经 {@link FollowUnfollowSourceParser} 归一化为
+ * {@link CountFollowUnfollowMqDTO} 后再入聚合队列，下游聚合/落库逻辑不变。幂等门移除的短时计数
+ * 漂移由 hannote-data-align 日次纠偏自愈。
+ *
  * @author hanserwei
  * @date 2026/07/11
  * @since 0.0.1
@@ -44,8 +53,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RocketMQMessageListener(
         consumerGroup = MQConstants.GROUP_COUNT_FANS,
-        topic = MQConstants.TOPIC_COUNT_FANS)
-public class CountFansConsumer implements RocketMQListener<String> {
+        topic = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW)
+public class CountFansConsumer implements RocketMQListener<MessageExt> {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final RocketMQTemplate rocketMQTemplate;
@@ -82,9 +91,15 @@ public class CountFansConsumer implements RocketMQListener<String> {
     }
 
     @Override
-    public void onMessage(String body) {
+    public void onMessage(MessageExt message) {
+        String body = new String(message.getBody(), StandardCharsets.UTF_8);
+        // 源体按 Tag 归一化为计数 DTO，再入聚合队列（下游 doConsumeBatch 仍按 CountFollowUnfollowMqDTO 解析）
+        CountFollowUnfollowMqDTO dto = FollowUnfollowSourceParser.parse(message.getTags(), body);
+        if (Objects.isNull(dto)) {
+            return;
+        }
         // RocketMQ 多线程回调；Sinks emit 非并发安全，用 busyLooping 处理并发竞争
-        sink.emitNext(body, Sinks.EmitFailureHandler.busyLooping(Duration.ofSeconds(1)));
+        sink.emitNext(JsonUtils.toJsonString(dto), Sinks.EmitFailureHandler.busyLooping(Duration.ofSeconds(1)));
     }
 
     /**

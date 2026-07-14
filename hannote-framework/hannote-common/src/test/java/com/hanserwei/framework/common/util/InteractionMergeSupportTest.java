@@ -1,4 +1,4 @@
-package com.hanserwei.note.consumer.support;
+package com.hanserwei.framework.common.util;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,8 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class InteractionMergeSupportTest {
 
-    /** 测试用最小操作结构：用户对某笔记的一次操作（type 1 正向 / 0 反向）。 */
-    record Op(Long userId, Long noteId, int type) {
+    /** 测试用最小操作结构：用户对某目标的一次操作（type 1 正向 / 0 反向）。 */
+    record Op(Long userId, Long targetId, int type) {
     }
 
     @Test
@@ -27,13 +27,13 @@ class InteractionMergeSupportTest {
                 new Op(2L, 100L, 0)                                             // 单条 → 保留
         );
 
-        List<Op> merged = InteractionMergeSupport.mergeByLastOp(ops, Op::userId, Op::noteId);
+        List<Op> merged = InteractionMergeSupport.mergeByLastOp(ops, Op::userId, Op::targetId);
 
         assertThat(merged).containsExactlyInAnyOrder(new Op(1L, 200L, 1), new Op(2L, 100L, 0));
     }
 
     @Test
     void 空输入返回空() {
-        assertThat(InteractionMergeSupport.mergeByLastOp(List.<Op>of(), Op::userId, Op::noteId)).isEmpty();
+        assertThat(InteractionMergeSupport.mergeByLastOp(List.<Op>of(), Op::userId, Op::targetId)).isEmpty();
     }
 }

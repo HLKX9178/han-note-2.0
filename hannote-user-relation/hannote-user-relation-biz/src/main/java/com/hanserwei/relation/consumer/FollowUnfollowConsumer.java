@@ -1,36 +1,34 @@
 package com.hanserwei.relation.consumer;
 
+import cn.hutool.core.collection.CollUtil;
 import com.google.common.util.concurrent.RateLimiter;
 import com.hanserwei.framework.common.util.DateUtils;
+import com.hanserwei.framework.common.util.InteractionMergeSupport;
 import com.hanserwei.framework.common.util.JsonUtils;
+import com.hanserwei.relation.config.RelationProperties;
 import com.hanserwei.relation.constant.MQConstants;
 import com.hanserwei.relation.constant.RedisKeyConstants;
-import com.hanserwei.relation.config.RelationProperties;
 import com.hanserwei.relation.domain.dataobject.FansDO;
 import com.hanserwei.relation.domain.dataobject.FollowingDO;
 import com.hanserwei.relation.domain.mapper.FansDOMapper;
 import com.hanserwei.relation.domain.mapper.FollowingDOMapper;
 import com.hanserwei.relation.enums.FollowUnfollowTypeEnum;
-import com.hanserwei.relation.model.dto.CountFollowUnfollowMqDTO;
 import com.hanserwei.relation.model.dto.FollowUserMqDTO;
 import com.hanserwei.relation.model.dto.UnfollowUserMqDTO;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.rocketmq.client.producer.SendCallback;
-import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.consumer.listener.ConsumeOrderlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerOrderly;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.spring.annotation.ConsumeMode;
-import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
-import org.apache.rocketmq.spring.core.RocketMQListener;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.dao.RecoverableDataAccessException;
-import org.springframework.dao.TransientDataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -38,29 +36,40 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /**
- * 关注、取关 MQ 消费者（集群模式）.
+ * 关注 / 取关 MQ 消费者（rocketmq-client 原生批量顺序消费）.
  *
- * <p>消费 {@link MQConstants#TOPIC_FOLLOW_OR_UNFOLLOW}，按 Tag 分派：{@code Follow} 落库
- * 关注关系并更新粉丝 ZSET，{@code Unfollow} 留待后续。集群模式下同组仅一个实例消费某条消息。
+ * <p>批量顺序消费 {@link MQConstants#TOPIC_FOLLOW_OR_UNFOLLOW}：令牌桶削峰后，按 Tag
+ * （{@link MQConstants#TAG_FOLLOW}/{@link MQConstants#TAG_UNFOLLOW}）解析为统一 {@link FollowOp}，
+ * 对一批消息按 {@code (userId, targetUserId)} 做奇偶抵消合并（{@link InteractionMergeSupport}），
+ * 再把最终操作拆成关注组 / 取关组分别批量落库：
+ * <ul>
+ *   <li>关注组：{@code t_following}、{@code t_fans} 各批量 insert（{@code ON CONFLICT DO NOTHING} 幂等）；</li>
+ *   <li>取关组：{@code t_following}、{@code t_fans} 各批量 delete。</li>
+ * </ul>
+ * 双表写在同一编程式事务内保证原子性；事务提交后逐个执行粉丝 ZSET 副作用（follow 增量、unfollow 移除）。
  *
- * <p>削峰：Guava 令牌桶 {@link RateLimiter} 阻塞式获取令牌，以数据库可承受速率消费。
- * 幂等：{@code t_following}/{@code t_fans} 联合唯一索引兜底，重复消费转成功不重试。
+ * <p>顺序性由生产端按 {@code userId} hashKey 有序发送保证。计数已改由计数服务并行直消费源 Topic，
+ * 本消费者不再转发计数 MQ。
+ *
+ * <p><b>与原单条版的行为差异（供 CR 关注）</b>：原按单条区分「瞬时故障重试 / 毒丸吞掉」；批量版对整批
+ * 事务失败统一返回 {@code SUSPEND_CURRENT_QUEUE_A_MOMENT} 挂起重试，超过 {@code maxReconsumeTimes}
+ * 后由 RocketMQ 转入死信队列。
  *
  * @author hanserwei
- * @date 2026/07/10
+ * @date 2026/07/14
  * @since 0.0.1
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@RocketMQMessageListener(
-        consumerGroup = MQConstants.GROUP_FOLLOW_UNFOLLOW_CONSUMER,
-        topic = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW,
-        consumeMode = ConsumeMode.ORDERLY)
-public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
+public class FollowUnfollowConsumer {
+
+    @org.springframework.beans.factory.annotation.Value("${rocketmq.name-server}")
+    private String namesrvAddr;
 
     private final FollowingDOMapper followingDOMapper;
     private final FansDOMapper fansDOMapper;
@@ -68,140 +77,149 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
     private final StringRedisTemplate stringRedisTemplate;
     private final RelationProperties relationProperties;
     private final RateLimiter followUnfollowRateLimiter;
-    private final RocketMQTemplate rocketMQTemplate;
+
+    private DefaultMQPushConsumer consumer;
 
     /** 更新粉丝 ZSET 的 Lua 脚本 */
     private static final DefaultRedisScript<Long> FANS_ZSET_SCRIPT = buildFansZsetScript();
 
-    @Override
-    public void onMessage(MessageExt message) {
-        // 流量削峰：获取令牌，无可用令牌时阻塞直到获得
-        followUnfollowRateLimiter.acquire();
+    /**
+     * 归一化后的关注/取关操作.
+     *
+     * @param userId       发起者用户 ID
+     * @param targetUserId 目标用户 ID（被关注/被取关者）
+     * @param type         操作类型：1 关注 / 0 取关
+     * @param createTime   操作时间
+     */
+    private record FollowOp(Long userId, Long targetUserId, Integer type, LocalDateTime createTime) {
+    }
 
+    @PostConstruct
+    public void init() throws MQClientException {
+        consumer = new DefaultMQPushConsumer(MQConstants.GROUP_FOLLOW_UNFOLLOW_CONSUMER);
+        consumer.setNamesrvAddr(namesrvAddr);
+        consumer.subscribe(MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW, "*");
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET);
+        consumer.setMessageModel(MessageModel.CLUSTERING);
+        consumer.setConsumeMessageBatchMaxSize(30);
+        consumer.setPullInterval(1000);
+        consumer.setMaxReconsumeTimes(3);
+
+        consumer.registerMessageListener((MessageListenerOrderly) (msgs, context) -> {
+            log.info("==> 【关注/取关】本批次消息大小: {}", msgs.size());
+            try {
+                // 流量削峰（动态限流 Bean，可随扩缩容变速）
+                followUnfollowRateLimiter.acquire();
+
+                // 消息体按 Tag 归一化为 FollowOp
+                List<FollowOp> ops = msgs.stream()
+                        .map(this::toFollowOp)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+                // 内存合并：同 (userId, targetUserId) 偶数次抵消、奇数次取最后一次
+                List<FollowOp> merged = InteractionMergeSupport.mergeByLastOp(
+                        ops, FollowOp::userId, FollowOp::targetUserId);
+                if (CollUtil.isEmpty(merged)) {
+                    return ConsumeOrderlyStatus.SUCCESS;
+                }
+
+                // 拆关注组 / 取关组
+                List<FollowOp> followOps = merged.stream()
+                        .filter(op -> Objects.equals(op.type(), FollowUnfollowTypeEnum.FOLLOW.getCode()))
+                        .toList();
+                List<FollowOp> unfollowOps = merged.stream()
+                        .filter(op -> Objects.equals(op.type(), FollowUnfollowTypeEnum.UNFOLLOW.getCode()))
+                        .toList();
+
+                // 编程式事务：双表批量写原子化
+                transactionTemplate.executeWithoutResult(status -> {
+                    if (CollUtil.isNotEmpty(followOps)) {
+                        followingDOMapper.batchInsertIgnore(followOps.stream()
+                                .map(op -> FollowingDO.builder()
+                                        .userId(op.userId())
+                                        .followingUserId(op.targetUserId())
+                                        .createTime(op.createTime())
+                                        .build())
+                                .toList());
+                        fansDOMapper.batchInsertIgnore(followOps.stream()
+                                .map(op -> FansDO.builder()
+                                        .userId(op.targetUserId())
+                                        .fansUserId(op.userId())
+                                        .createTime(op.createTime())
+                                        .build())
+                                .toList());
+                    }
+                    if (CollUtil.isNotEmpty(unfollowOps)) {
+                        followingDOMapper.batchDelete(unfollowOps.stream()
+                                .map(op -> FollowingDO.builder()
+                                        .userId(op.userId())
+                                        .followingUserId(op.targetUserId())
+                                        .build())
+                                .toList());
+                        fansDOMapper.batchDelete(unfollowOps.stream()
+                                .map(op -> FansDO.builder()
+                                        .userId(op.targetUserId())
+                                        .fansUserId(op.userId())
+                                        .build())
+                                .toList());
+                    }
+                });
+
+                // 事务提交后处理粉丝 ZSET 副作用（保证缓存与库一致）
+                followOps.forEach(op -> updateFansZset(op.userId(), op.targetUserId(), op.createTime()));
+                unfollowOps.forEach(op -> {
+                    String fansKey = RedisKeyConstants.buildUserFansKey(op.targetUserId());
+                    stringRedisTemplate.opsForZSet().remove(fansKey, String.valueOf(op.userId()));
+                });
+
+                return ConsumeOrderlyStatus.SUCCESS;
+            } catch (Exception e) {
+                log.error("==> 【关注/取关】批量消费失败，挂起当前队列稍后重试: ", e);
+                return ConsumeOrderlyStatus.SUSPEND_CURRENT_QUEUE_A_MOMENT;
+            }
+        });
+
+        consumer.start();
+        log.info("## FollowUnfollowConsumer 启动完成，批量顺序消费 {}", MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW);
+    }
+
+    @PreDestroy
+    public void destroy() {
+        if (Objects.nonNull(consumer)) {
+            try {
+                consumer.shutdown();
+            } catch (Exception e) {
+                log.error("==> FollowUnfollowConsumer 关闭异常: ", e);
+            }
+        }
+    }
+
+    /**
+     * 将一条源消息按 Tag 归一化为 {@link FollowOp}.
+     *
+     * @param message 源消息
+     * @return 归一化操作；无法识别的 Tag 或解析失败返回 {@code null}
+     */
+    private FollowOp toFollowOp(MessageExt message) {
         String bodyJsonStr = new String(message.getBody(), StandardCharsets.UTF_8);
         String tags = message.getTags();
-        log.info("==> FollowUnfollowConsumer 消费消息: {}, tags: {}", bodyJsonStr, tags);
-
-        // 按 Tag 分派操作类型
         if (Objects.equals(tags, MQConstants.TAG_FOLLOW)) {
-            handleFollowTagMessage(bodyJsonStr);
+            FollowUserMqDTO dto = JsonUtils.parseObject(bodyJsonStr, FollowUserMqDTO.class);
+            if (Objects.isNull(dto)) {
+                return null;
+            }
+            return new FollowOp(dto.getUserId(), dto.getFollowUserId(),
+                    FollowUnfollowTypeEnum.FOLLOW.getCode(), dto.getCreateTime());
         } else if (Objects.equals(tags, MQConstants.TAG_UNFOLLOW)) {
-            handleUnfollowTagMessage(bodyJsonStr);
-        }
-    }
-
-    /**
-     * 处理关注消息：编程式事务双表落库，成功后增量更新被关注用户的粉丝 ZSET。
-     *
-     * @param bodyJsonStr 消息体 JSON
-     */
-    private void handleFollowTagMessage(String bodyJsonStr) {
-        FollowUserMqDTO followUserMqDTO = JsonUtils.parseObject(bodyJsonStr, FollowUserMqDTO.class);
-        if (Objects.isNull(followUserMqDTO)) {
-            return;
-        }
-
-        Long userId = followUserMqDTO.getUserId();
-        Long followUserId = followUserMqDTO.getFollowUserId();
-        LocalDateTime createTime = followUserMqDTO.getCreateTime();
-
-        // 编程式事务：关注表 + 粉丝表两条记录要么都成功，要么都回滚
-        boolean isSuccess = Boolean.TRUE.equals(transactionTemplate.execute(status -> {
-            try {
-                followingDOMapper.insert(FollowingDO.builder()
-                        .userId(userId)
-                        .followingUserId(followUserId)
-                        .createTime(createTime)
-                        .build());
-                fansDOMapper.insert(FansDO.builder()
-                        .userId(followUserId)
-                        .fansUserId(userId)
-                        .createTime(createTime)
-                        .build());
-                return true;
-            } catch (DuplicateKeyException e) {
-                // 幂等：联合唯一索引冲突说明消息重复消费，视为成功，不回滚不重试
-                log.info("==> 关注关系已存在（重复消费），userId: {}, followUserId: {}", userId, followUserId);
-                return true;
-            } catch (Exception e) {
-                status.setRollbackOnly();
-                // 瞬时故障（网络抖动/连接中断/超时/死锁）：抛出，交由 ORDERLY 挂起队列保序重试，DB 恢复后自愈
-                rethrowIfTransient(e);
-                // 毒丸消息（脏数据/映射错误等确定性异常）：重试永远失败，吞掉防止阻塞队列，靠 TTL 回源兜底
-                log.error("==> 关注关系落库失败（非瞬时，不重试）, userId: {}, followUserId: {}", userId, followUserId, e);
-                return false;
+            UnfollowUserMqDTO dto = JsonUtils.parseObject(bodyJsonStr, UnfollowUserMqDTO.class);
+            if (Objects.isNull(dto)) {
+                return null;
             }
-        }));
-        log.info("==> 关注关系落库结果: {}", isSuccess);
-
-        // 落库成功才更新粉丝 ZSET（避免缓存与库不一致）
-        if (isSuccess) {
-            updateFansZset(userId, followUserId, createTime);
-            // 通知计数服务：关注数（userId 关注数 +1）、粉丝数（followUserId 粉丝数 +1）
-            sendCountMQ(userId, followUserId, FollowUnfollowTypeEnum.FOLLOW.getCode());
+            return new FollowOp(dto.getUserId(), dto.getUnfollowUserId(),
+                    FollowUnfollowTypeEnum.UNFOLLOW.getCode(), dto.getCreateTime());
         }
-    }
-
-    /**
-     * 处理取关消息：编程式事务删除双表记录，成功后从被取关方粉丝 ZSET 移除发起者。
-     *
-     * @param bodyJsonStr 消息体 JSON
-     */
-    private void handleUnfollowTagMessage(String bodyJsonStr) {
-        UnfollowUserMqDTO unfollowUserMqDTO = JsonUtils.parseObject(bodyJsonStr, UnfollowUserMqDTO.class);
-        if (Objects.isNull(unfollowUserMqDTO)) {
-            return;
-        }
-
-        Long userId = unfollowUserMqDTO.getUserId();
-        Long unfollowUserId = unfollowUserMqDTO.getUnfollowUserId();
-
-        // 编程式事务：关注表 + 粉丝表两条记录要么都删除，要么都回滚
-        boolean isSuccess = Boolean.TRUE.equals(transactionTemplate.execute(status -> {
-            try {
-                // 关注表：删除「我关注对方」这条记录
-                int count = followingDOMapper.delete(new LambdaQueryWrapper<FollowingDO>()
-                        .eq(FollowingDO::getUserId, userId)
-                        .eq(FollowingDO::getFollowingUserId, unfollowUserId));
-                // 删成功再删粉丝表：从对方的粉丝里移除我
-                if (count > 0) {
-                    fansDOMapper.delete(new LambdaQueryWrapper<FansDO>()
-                            .eq(FansDO::getUserId, unfollowUserId)
-                            .eq(FansDO::getFansUserId, userId));
-                }
-                return true;
-            } catch (Exception e) {
-                status.setRollbackOnly();
-                // 瞬时故障：抛出触发 ORDERLY 保序重试；毒丸消息吞掉防止阻塞队列
-                rethrowIfTransient(e);
-                log.error("==> 取关关系删库失败（非瞬时，不重试）, userId: {}, unfollowUserId: {}", userId, unfollowUserId, e);
-                return false;
-            }
-        }));
-        log.info("==> 取关关系删库结果: {}", isSuccess);
-
-        // 删库成功后，从被取关方的粉丝 ZSET 移除发起者（保证缓存与库一致）
-        if (isSuccess) {
-            String fansKey = RedisKeyConstants.buildUserFansKey(unfollowUserId);
-            stringRedisTemplate.opsForZSet().remove(fansKey, String.valueOf(userId));
-            // 通知计数服务：关注数（userId 关注数 -1）、粉丝数（unfollowUserId 粉丝数 -1）
-            sendCountMQ(userId, unfollowUserId, FollowUnfollowTypeEnum.UNFOLLOW.getCode());
-        }
-    }
-
-    /**
-     * 瞬时/可恢复类数据访问异常则重新抛出，交由上层（RocketMQ ORDERLY）挂起当前队列、保序重试。
-     *
-     * <p>覆盖网络抖动、连接中途断开、语句超时、死锁/锁等待等——这类异常重试大概率能成，
-     * 顺序消费"卡住等 DB 恢复"正是期望行为。其余确定性异常（完整性冲突、SQL/映射错误等毒丸）
-     * 不在此抛出，由调用方吞掉，避免同一条脏消息把队列永久堵死（ORDERLY 默认近乎无限重试）。
-     *
-     * @param e 事务执行中捕获的异常
-     */
-    private static void rethrowIfTransient(Exception e) {
-        if (e instanceof TransientDataAccessException || e instanceof RecoverableDataAccessException) {
-            throw (RuntimeException) e;
-        }
+        return null;
     }
 
     /**
@@ -219,52 +237,6 @@ public class FollowUnfollowConsumer implements RocketMQListener<MessageExt> {
         stringRedisTemplate.execute(FANS_ZSET_SCRIPT,
                 Collections.singletonList(fansKey),
                 String.valueOf(userId), String.valueOf(timestamp), String.valueOf(maxCacheCount));
-    }
-
-    /**
-     * 通知计数服务：发送 2 条计数 MQ（关注数 + 粉丝数）。
-     *
-     * <p>关注数与粉丝数由计数服务的不同消费者独立统计，故拆成两个 topic 各发一条，
-     * 消息体一致（同一 {@link CountFollowUnfollowMqDTO}）。异步发送，不阻塞消费主流程。
-     *
-     * @param userId       原用户 ID（发起关注/取关者）
-     * @param targetUserId 目标用户 ID（被关注/被取关者）
-     * @param type         操作类型：1 关注，0 取关
-     */
-    private void sendCountMQ(Long userId, Long targetUserId, Integer type) {
-        CountFollowUnfollowMqDTO dto = CountFollowUnfollowMqDTO.builder()
-                .userId(userId)
-                .targetUserId(targetUserId)
-                .type(type)
-                .build();
-        org.springframework.messaging.Message<String> message =
-                MessageBuilder.withPayload(JsonUtils.toJsonString(dto)).build();
-
-        // 关注数计数
-        rocketMQTemplate.asyncSend(MQConstants.TOPIC_COUNT_FOLLOWING, message, new SendCallback() {
-            @Override
-            public void onSuccess(SendResult sendResult) {
-                log.info("==> 【计数服务：关注数】MQ 发送成功, SendResult: {}", sendResult);
-            }
-
-            @Override
-            public void onException(Throwable throwable) {
-                log.error("==> 【计数服务：关注数】MQ 发送异常: ", throwable);
-            }
-        });
-
-        // 粉丝数计数
-        rocketMQTemplate.asyncSend(MQConstants.TOPIC_COUNT_FANS, message, new SendCallback() {
-            @Override
-            public void onSuccess(SendResult sendResult) {
-                log.info("==> 【计数服务：粉丝数】MQ 发送成功, SendResult: {}", sendResult);
-            }
-
-            @Override
-            public void onException(Throwable throwable) {
-                log.error("==> 【计数服务：粉丝数】MQ 发送异常: ", throwable);
-            }
-        });
     }
 
     private static DefaultRedisScript<Long> buildFansZsetScript() {

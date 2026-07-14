@@ -1,4 +1,4 @@
-package com.hanserwei.note.consumer.support;
+package com.hanserwei.framework.common.util;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -12,6 +12,8 @@ import java.util.function.Function;
  * <p>批量顺序消费同一批消息时，对同一 {@code (主体, 目标)} 的连续切换操作做抵消：
  * 偶数次操作最终状态回到原点（抵消丢弃），奇数次仅保留最后一次操作。依赖消费顺序，
  * 故输入列表须为顺序消费得到的批次（生产端按主体 hashKey 有序发送）。
+ *
+ * <p>点赞/收藏/关注等切换型互动的批量消费者共用此逻辑。
  *
  * @author hanserwei
  * @date 2026/07/14

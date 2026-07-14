@@ -2,9 +2,9 @@ package com.hanserwei.note.consumer;
 
 import cn.hutool.core.collection.CollUtil;
 import com.google.common.util.concurrent.RateLimiter;
+import com.hanserwei.framework.common.util.InteractionMergeSupport;
 import com.hanserwei.framework.common.util.JsonUtils;
 import com.hanserwei.note.constant.MQConstants;
-import com.hanserwei.note.consumer.support.InteractionMergeSupport;
 import com.hanserwei.note.domain.dataobject.NoteCollectionDO;
 import com.hanserwei.note.domain.mapper.NoteCollectionDOMapper;
 import com.hanserwei.note.model.dto.CollectUnCollectNoteMqDTO;

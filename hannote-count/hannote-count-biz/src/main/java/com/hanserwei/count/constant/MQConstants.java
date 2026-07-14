@@ -12,6 +12,15 @@ package com.hanserwei.count.constant;
  */
 public interface MQConstants {
 
+    /** Topic：关注/取关源事件（与 relation 侧 TOPIC_FOLLOW_OR_UNFOLLOW 同名，计数并行直消费源 Topic） */
+    String TOPIC_FOLLOW_OR_UNFOLLOW = "FollowUnfollowTopic";
+
+    /** MQ Tag：关注（源事件） */
+    String TAG_FOLLOW = "Follow";
+
+    /** MQ Tag：取关（源事件） */
+    String TAG_UNFOLLOW = "Unfollow";
+
     /** Topic：关注数计数（写 Redis） */
     String TOPIC_COUNT_FOLLOWING = "CountFollowingTopic";
 
