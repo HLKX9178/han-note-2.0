@@ -17,4 +17,19 @@
         WHERE t_note_like.status <![CDATA[ <> ]]> EXCLUDED.status
     </insert>
 
+    <!--
+      批量新增或更新点赞记录（PostgreSQL 批量 upsert）。
+      语义同 insertOrUpdateLike，对内存合并后的一批最终操作一次落库。
+    -->
+    <insert id="batchInsertOrUpdate" parameterType="list">
+        INSERT INTO t_note_like (user_id, note_id, create_time, status)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.noteId}, #{item.createTime}, #{item.status})
+        </foreach>
+        ON CONFLICT (user_id, note_id)
+        DO UPDATE SET status = EXCLUDED.status, create_time = EXCLUDED.create_time
+        WHERE t_note_like.status <![CDATA[ <> ]]> EXCLUDED.status
+    </insert>
+
 </mapper>
