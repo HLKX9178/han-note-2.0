@@ -59,7 +59,7 @@ public class Comment2DBConsumer {
     /** 令牌桶：每秒 1000（按数据库承受力调整） */
     private final RateLimiter rateLimiter = RateLimiter.create(1000);
 
-    @Bean(name = "comment2DBConsumer")
+    @Bean(name = "commentPushConsumer", destroyMethod = "")
     public DefaultMQPushConsumer mqPushConsumer() throws MQClientException {
         String group = "hannote_comment_group_" + MQConstants.TOPIC_PUBLISH_COMMENT;
 
