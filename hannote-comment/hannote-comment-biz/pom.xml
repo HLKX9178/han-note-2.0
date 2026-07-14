@@ -15,6 +15,32 @@
     <name>${project.artifactId}</name>
     <description>评论服务业务层：评论发布与批量落库、启动模块。作者：Hanserwei</description>
 
+    <dependencyManagement>
+        <dependencies>
+            <!--
+              okhttp/okio 版本对齐（同 hannote-data-align）：PowerJob worker 传递 okhttp:4.12.0，
+              nacos-client 侧的 OpenTelemetry 传递 okhttp-jvm:5.3.2，且 grpc 链把 okio 就近降到 3.4.0，
+              运行期 okhttp 5.3.2 调 okio 3.16 才有的 Okio.socket(Socket) → NoSuchMethodError，worker 启动失败。
+              统一到 okhttp 5.3.2 + okio 3.16.4。
+            -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>5.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>3.16.4</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio-jvm</artifactId>
+                <version>3.16.4</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.hanserwei</groupId>
@@ -106,6 +132,12 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- PowerJob Worker（手动 @Bean 初始化，见 config/PowerJobConfig）：发送失败 MQ 兜底扫表重发 -->
+        <dependency>
+            <groupId>tech.powerjob</groupId>
+            <artifactId>powerjob-worker</artifactId>
         </dependency>
 
         <dependency>

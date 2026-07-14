@@ -1,5 +1,7 @@
 package com.hanserwei.comment.retry;
 
+import com.hanserwei.comment.domain.dataobject.MqSendFailDO;
+import com.hanserwei.comment.domain.mapper.MqSendFailDOMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendCallback;
@@ -29,6 +31,7 @@ public class SendMqRetryHelper {
     private final RocketMQTemplate rocketMQTemplate;
     private final RetryTemplate retryTemplate;
     private final AsyncTaskExecutor taskExecutor;
+    private final MqSendFailDOMapper mqSendFailDOMapper;
 
     /**
      * 异步发送 MQ.
@@ -72,12 +75,21 @@ public class SendMqRetryHelper {
     }
 
     /**
-     * 兜底：多次重试仍失败.
+     * 兜底：多次重试仍失败，将消息落库 {@code t_mq_send_fail}.
      *
-     * <p>TODO 后续实现：将失败消息落库，定时任务扫表重发，成功后物理删除。本批仅记录错误日志。
+     * <p>由 PowerJob 定时任务（{@code MqResendProcessor}）扫表重发，成功后物理删除，做到 MQ 最终发出。
      */
     private void fallback(Exception e, String topic, String bodyJson) {
-        log.error("==> 多次发送失败, 进入兜底方案（暂仅记录）, Topic: {}, body: {}", topic, bodyJson, e);
-        // TODO: 失败消息落库 + 定时补偿重发
+        log.error("==> 多次发送失败, 进入兜底方案（落库待补偿重发）, Topic: {}, body: {}", topic, bodyJson, e);
+        LocalDateTime now = LocalDateTime.now();
+        mqSendFailDOMapper.insert(MqSendFailDO.builder()
+                .topic(topic)
+                .body(bodyJson)
+                .retryCount(0)
+                .nextRetryTime(now)
+                .status(0)
+                .createTime(now)
+                .updateTime(now)
+                .build());
     }
 }
