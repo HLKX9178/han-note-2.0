@@ -32,6 +32,10 @@ import java.util.Objects;
  * <p>与点赞数消费者同构：{@code bufferTimeout(1000, 1s)} 聚合，按笔记 ID 净算增量后同时
  * {@code HINCRBY} 笔记维度（被收藏数）与用户维度（发布者获藏数），再转发落库 MQ。
  *
+ * <p>本消费者已改为**并行直消费源 Topic** {@link MQConstants#TOPIC_COLLECT_UNCOLLECT}（与 note 收藏
+ * 落库消费者并行）。幂等门移除的短时计数漂移由 hannote-data-align 日次纠偏自愈；源体
+ * {@code CountCollectUnCollectNoteMqDTO} 字段与源 {@code CollectUnCollectNoteMqDTO} 一致，可直接解析。
+ *
  * @author hanserwei
  * @date 2026/07/11
  * @since 0.0.1
@@ -41,7 +45,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @RocketMQMessageListener(
         consumerGroup = MQConstants.GROUP_COUNT_NOTE_COLLECT,
-        topic = MQConstants.TOPIC_COUNT_NOTE_COLLECT)
+        topic = MQConstants.TOPIC_COLLECT_UNCOLLECT)
 public class CountNoteCollectConsumer implements RocketMQListener<String> {
 
     private final RedisTemplate<String, Object> redisTemplate;

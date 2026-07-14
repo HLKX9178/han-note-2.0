@@ -48,6 +48,9 @@ public interface MQConstants {
     /** Topic：笔记收藏数计数（写 Redis） */
     String TOPIC_COUNT_NOTE_COLLECT = "CountNoteCollectTopic";
 
+    /** Topic：笔记收藏/取消收藏源事件（与 note 侧 TOPIC_COLLECT_UNCOLLECT 同名，计数并行直消费源 Topic） */
+    String TOPIC_COLLECT_UNCOLLECT = "CollectUnCollectTopic";
+
     /** Topic：笔记收藏数计数落库 */
     String TOPIC_COUNT_NOTE_COLLECT_2_DB = "CountNoteCollect2DBTopic";
 
