@@ -16,11 +16,9 @@
     <description>评论服务业务层：评论发布与批量落库、启动模块。作者：Hanserwei</description>
 
     <dependencies>
-        <!-- 根 pom dependencyManagement 未收录 hannote-comment-api（Task 3 遗漏，未来可补），此处与其它内部模块同规则显式声明同版本 -->
         <dependency>
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-comment-api</artifactId>
-            <version>${revision}</version>
         </dependency>
         <dependency>
             <groupId>com.hanserwei</groupId>
@@ -70,11 +68,10 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
         </dependency>
-        <!-- 根 pom dependencyManagement 仅管理 hutool-core，未管理 hutool-all，此处显式补版本，复用同一 hutool.version 属性 -->
+        <!-- Hutool Core（CollUtil 工具） -->
         <dependency>
             <groupId>cn.hutool</groupId>
-            <artifactId>hutool-all</artifactId>
-            <version>${hutool.version}</version>
+            <artifactId>hutool-core</artifactId>
         </dependency>
 
         <!-- MyBatis-Plus + PostgreSQL -->

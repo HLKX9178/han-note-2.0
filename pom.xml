@@ -303,6 +303,12 @@
                 <artifactId>hannote-count-api</artifactId>
                 <version>${revision}</version>
             </dependency>
+            <!-- 评论服务对外契约 -->
+            <dependency>
+                <groupId>com.hanserwei</groupId>
+                <artifactId>hannote-comment-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
