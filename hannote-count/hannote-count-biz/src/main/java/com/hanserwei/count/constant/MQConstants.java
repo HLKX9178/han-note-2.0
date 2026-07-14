@@ -36,6 +36,9 @@ public interface MQConstants {
     /** 消费者组：关注数计数落库 */
     String GROUP_COUNT_FOLLOWING_2_DB = "hannote_count_following_2db_group";
 
+    /** Topic：笔记点赞/取消点赞源事件（与 note 侧 TOPIC_LIKE_UNLIKE 同名，计数并行直消费源 Topic） */
+    String TOPIC_LIKE_UNLIKE = "LikeUnlikeTopic";
+
     /** Topic：笔记点赞数计数（写 Redis） */
     String TOPIC_COUNT_NOTE_LIKE = "CountNoteLikeTopic";
 

@@ -33,6 +33,11 @@ import java.util.Objects;
  * 触发一次，按笔记 ID 分组净算增量后，同时 {@code HINCRBY} 笔记维度（被点赞数）与用户维度
  * （发布者获赞数）——均仅当 key 存在，再转发落库 MQ。聚合、并发安全、优雅关闭与粉丝数消费者一致。
  *
+ * <p>本消费者已改为**并行直消费源 Topic** {@link MQConstants#TOPIC_LIKE_UNLIKE}（与 note 点赞落库
+ * 消费者并行，互不阻塞）。副作用：note 侧「status 真变化才转发」的幂等门不再生效，MQ 重复投递会
+ * 造成 Redis 计数短时偏高，由 hannote-data-align 日次计数纠偏自愈。源体 {@code CountLikeUnlikeNoteMqDTO}
+ * 字段与源 {@code LikeUnlikeNoteMqDTO} 一致，可直接解析。
+ *
  * @author hanserwei
  * @date 2026/07/11
  * @since 0.0.1
@@ -42,7 +47,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @RocketMQMessageListener(
         consumerGroup = MQConstants.GROUP_COUNT_NOTE_LIKE,
-        topic = MQConstants.TOPIC_COUNT_NOTE_LIKE)
+        topic = MQConstants.TOPIC_LIKE_UNLIKE)
 public class CountNoteLikeConsumer implements RocketMQListener<String> {
 
     private final RedisTemplate<String, Object> redisTemplate;
