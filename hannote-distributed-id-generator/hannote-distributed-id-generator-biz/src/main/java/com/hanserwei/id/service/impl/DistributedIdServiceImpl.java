@@ -27,6 +27,8 @@ public class DistributedIdServiceImpl implements DistributedIdService {
     private static final String USER_ID = "user_id";
     /** CoSId 生成器名称：笔记 ID */
     private static final String NOTE_ID = "note_id";
+    /** CoSId 生成器名称：评论 ID */
+    private static final String COMMENT_ID = "comment_id";
 
     private final IdGeneratorProvider idGeneratorProvider;
 
@@ -48,6 +50,13 @@ public class DistributedIdServiceImpl implements DistributedIdService {
     public long generateNoteId() {
         long id = idGeneratorProvider.getRequired(NOTE_ID).generate();
         log.info("==> 生成笔记 ID: {}", id);
+        return id;
+    }
+
+    @Override
+    public long generateCommentId() {
+        long id = idGeneratorProvider.getRequired(COMMENT_ID).generate();
+        log.info("==> 生成评论 ID: {}", id);
         return id;
     }
 }

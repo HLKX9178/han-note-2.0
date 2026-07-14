@@ -44,4 +44,12 @@ public interface DistributedIdHttpApi {
      */
     @PostExchange(PREFIX + "/note/generate")
     Response<Long> generateNoteId();
+
+    /**
+     * 生成评论 ID（comment-id）.
+     *
+     * @return 全局唯一的评论 ID
+     */
+    @PostExchange(PREFIX + "/comment/generate")
+    Response<Long> generateCommentId();
 }
