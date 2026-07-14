@@ -30,6 +30,7 @@
         <module>hannote-count</module>
         <module>hannote-data-align</module>
         <module>hannote-search</module>
+        <module>hannote-comment</module>
     </modules>
 
     <properties>
@@ -59,6 +60,8 @@
         <tencent-cos.version>5.6.265</tencent-cos.version>
         <!-- RocketMQ Spring Starter：2.3.0+ 原生支持 Spring Boot 3.x，提供 5.0 timer message API -->
         <rocketmq.version>2.3.6</rocketmq.version>
+        <!-- RocketMQ 原生客户端版本：与 rocketmq-spring-boot-starter:2.3.6 传递的 client 主版本对齐 -->
+        <rocketmq-client.version>5.3.1</rocketmq-client.version>
 
         <!-- PowerJob 分布式任务调度（worker 版本须与本地 powerjob-server 一致） -->
         <powerjob.version>5.1.2</powerjob.version>
@@ -202,6 +205,13 @@
                 <groupId>org.apache.rocketmq</groupId>
                 <artifactId>rocketmq-spring-boot-starter</artifactId>
                 <version>${rocketmq.version}</version>
+            </dependency>
+
+            <!-- RocketMQ 原生客户端（批量消费 DefaultMQPushConsumer 用） -->
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-client</artifactId>
+                <version>${rocketmq-client.version}</version>
             </dependency>
 
             <!-- Elasticsearch 官方新 Java 客户端：搜索服务用它构建 note/user 分词搜索请求 -->
