@@ -7,9 +7,9 @@ import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.retry.RetryCallback;
 import org.springframework.retry.support.RetryTemplate;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -28,7 +28,7 @@ public class SendMqRetryHelper {
 
     private final RocketMQTemplate rocketMQTemplate;
     private final RetryTemplate retryTemplate;
-    private final ThreadPoolTaskExecutor taskExecutor;
+    private final AsyncTaskExecutor taskExecutor;
 
     /**
      * 异步发送 MQ.
