@@ -1,0 +1,22 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: hannote-comment
+  profiles:
+    active: dev
+  threads:
+    virtual:
+      enabled: true
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+# 自定义发送 MQ 重试
+retry:
+  max-attempts: 3      # 最大重试次数
+  init-interval: 1000  # 初始延迟（ms）
+  multiplier: 2        # 每次间隔乘数

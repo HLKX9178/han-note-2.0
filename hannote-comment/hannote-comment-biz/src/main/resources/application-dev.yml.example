@@ -1,0 +1,32 @@
+# 复制为 application-dev.yml 并填入真实值（真实文件已被 .gitignore 忽略）
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: <nacos-addr>
+        namespace: hannote
+        group: DEFAULT_GROUP
+
+  # PostgreSQL（数据库 hannote）
+  datasource:
+    url: jdbc:postgresql://<pg-host>:5432/hannote
+    username: <pg-user>
+    password: <pg-password>
+    driver-class-name: org.postgresql.Driver
+
+# RocketMQ（评论发布异步写 + 批量消费落库）
+rocketmq:
+  name-server: <rocketmq-name-server>     # 如 127.0.0.1:9876
+  producer:
+    group: hannote_comment_group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 0       # 自定义重试接管，starter 不再重试
+    retry-times-when-send-async-failed: 0
+    max-message-size: 4096
+  consumer:
+    group: hannote_comment_group
+    pull-batch-size: 30
+
+logging:
+  level:
+    com.hanserwei.comment.domain.mapper: debug
