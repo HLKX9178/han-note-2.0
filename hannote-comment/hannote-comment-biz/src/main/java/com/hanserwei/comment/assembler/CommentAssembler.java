@@ -2,8 +2,10 @@ package com.hanserwei.comment.assembler;
 
 import com.hanserwei.comment.domain.dataobject.CommentDO;
 import com.hanserwei.comment.enums.CommentLevelEnum;
+import com.hanserwei.comment.enums.ResponseCodeEnum;
 import com.hanserwei.comment.model.bo.CommentBO;
 import com.hanserwei.comment.model.dto.PublishCommentMqDTO;
+import com.hanserwei.framework.common.exception.BizException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +34,7 @@ public class CommentAssembler {
      * @param dtos            评论发布消息集合
      * @param replyCommentMap 被回复评论字典（评论 ID -> 评论 DO），无回复时传空 Map
      * @return 清洗后的评论 BO 集合
+     * @throws BizException 指定了 {@code replyCommentId} 但在 {@code replyCommentMap} 中查无此评论
      */
     public List<CommentBO> assemble(List<PublishCommentMqDTO> dtos, Map<Long, CommentDO> replyCommentMap) {
         List<CommentBO> result = new ArrayList<>(dtos.size());
@@ -43,6 +46,8 @@ public class CommentAssembler {
                     .noteId(dto.getNoteId())
                     .userId(dto.getCreatorId())
                     .isContentEmpty(true)                       // 默认内容为空
+                    // 显式空串而非 null：批量 INSERT 显式传值，PG 不会回退到列的 DEFAULT ''
+                    .contentUuid("")
                     .imageUrl(StringUtils.isBlank(imageUrl) ? "" : imageUrl)
                     .level(CommentLevelEnum.ONE.getCode())      // 默认一级
                     .parentId(dto.getNoteId())                  // 默认父级=笔记 ID
@@ -65,16 +70,20 @@ public class CommentAssembler {
 
             // 回复某评论：推导级别 / parentId / replyUserId
             Long replyCommentId = dto.getReplyCommentId();
-            if (Objects.nonNull(replyCommentId)) {
+            if (Objects.nonNull(replyCommentId) && replyCommentId > 0) {
                 CommentDO replied = replyCommentMap.get(replyCommentId);
-                if (Objects.nonNull(replied)) {
-                    bo.setLevel(CommentLevelEnum.TWO.getCode());
-                    bo.setReplyCommentId(replyCommentId);
-                    // 父评论 ID：回复一级=其 id；回复二级=其 parentId（挂到同一根一级评论）
-                    bo.setParentId(Objects.equals(replied.getLevel(), CommentLevelEnum.TWO.getCode())
-                            ? replied.getParentId() : replied.getId());
-                    bo.setReplyUserId(replied.getUserId());
+                if (Objects.isNull(replied)) {
+                    // 查不到被回复评论：不可降级为一级评论（用户明确要回复某条，静默改语义即数据损坏）。
+                    // 抛出让整批 RECONSUME_LATER：被回复评论可能只是尚未异步落库（评论写库本身是异步的），
+                    // 重试即可自愈；若确实不存在，重试耗尽后进死信队列留待排查。
+                    throw new BizException(ResponseCodeEnum.REPLY_COMMENT_NOT_FOUND);
                 }
+                bo.setLevel(CommentLevelEnum.TWO.getCode());
+                bo.setReplyCommentId(replyCommentId);
+                // 父评论 ID：回复一级=其 id；回复二级=其 parentId（挂到同一根一级评论）
+                bo.setParentId(Objects.equals(replied.getLevel(), CommentLevelEnum.TWO.getCode())
+                        ? replied.getParentId() : replied.getId());
+                bo.setReplyUserId(replied.getUserId());
             }
 
             result.add(bo);

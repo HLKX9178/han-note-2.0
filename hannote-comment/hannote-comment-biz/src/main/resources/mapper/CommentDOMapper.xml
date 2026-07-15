@@ -3,16 +3,22 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.hanserwei.comment.domain.mapper.CommentDOMapper">
 
-    <resultMap id="BaseResultMap" type="com.hanserwei.comment.domain.dataobject.CommentDO">
+    <!--
+      仅覆盖拼装二级评论所需字段，非 CommentDO 全字段映射。
+      配套 selectByCommentIds 使用；如需其他字段请另建 resultMap，勿直接复用。
+    -->
+    <resultMap id="ReplyAssembleResultMap" type="com.hanserwei.comment.domain.dataobject.CommentDO">
         <id column="id" property="id"/>
-        <result column="note_id" property="noteId"/>
         <result column="user_id" property="userId"/>
         <result column="level" property="level"/>
         <result column="parent_id" property="parentId"/>
     </resultMap>
 
-    <!-- 批量查询（拼装二级评论需要 level/parent_id/user_id） -->
-    <select id="selectByCommentIds" resultMap="BaseResultMap" parameterType="list">
+    <!--
+      批量查询被回复的评论。注意：只查 id/level/parent_id/user_id 四个字段（拼装二级评论所需），
+      返回的 CommentDO 其余字段均为 null，勿作通用查询复用。
+    -->
+    <select id="selectByCommentIds" resultMap="ReplyAssembleResultMap" parameterType="list">
         SELECT id, level, parent_id, user_id
         FROM t_comment
         WHERE id IN

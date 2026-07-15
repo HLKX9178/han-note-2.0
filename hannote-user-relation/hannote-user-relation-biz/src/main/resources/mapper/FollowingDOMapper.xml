@@ -18,11 +18,13 @@
 
     <!--
       批量删除关注记录，按 (user_id, following_user_id) 组合逐对匹配。
+      用行值构造器 IN 而非 OR 串联：PG 可直接走 uk_following_user_following 索引，
+      避免 batchSize 个 OR 子句导致的查询计划劣化。
     -->
     <delete id="batchDelete" parameterType="list">
-        DELETE FROM t_following WHERE
-        <foreach collection="list" item="item" separator=" OR ">
-            (user_id = #{item.userId} AND following_user_id = #{item.followingUserId})
+        DELETE FROM t_following WHERE (user_id, following_user_id) IN
+        <foreach collection="list" item="item" open="(" separator="," close=")">
+            (#{item.userId}, #{item.followingUserId})
         </foreach>
     </delete>
 

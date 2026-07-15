@@ -18,11 +18,13 @@
 
     <!--
       批量删除粉丝记录，按 (user_id, fans_user_id) 组合逐对匹配。
+      用行值构造器 IN 而非 OR 串联：PG 可直接走 uk_fans_user_fans 索引，
+      避免 batchSize 个 OR 子句导致的查询计划劣化。
     -->
     <delete id="batchDelete" parameterType="list">
-        DELETE FROM t_fans WHERE
-        <foreach collection="list" item="item" separator=" OR ">
-            (user_id = #{item.userId} AND fans_user_id = #{item.fansUserId})
+        DELETE FROM t_fans WHERE (user_id, fans_user_id) IN
+        <foreach collection="list" item="item" open="(" separator="," close=")">
+            (#{item.userId}, #{item.fansUserId})
         </foreach>
     </delete>
 
