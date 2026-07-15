@@ -2,6 +2,7 @@ package com.hanserwei.kv.api;
 
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.kv.api.dto.req.AddNoteContentReqDTO;
+import com.hanserwei.kv.api.dto.req.BatchAddCommentContentReqDTO;
 import com.hanserwei.kv.api.dto.req.DeleteNoteContentReqDTO;
 import com.hanserwei.kv.api.dto.req.FindNoteContentReqDTO;
 import com.hanserwei.kv.api.dto.resp.FindNoteContentRspDTO;
@@ -52,4 +53,13 @@ public interface KeyValueHttpApi {
      */
     @PostExchange(PREFIX + "/note/content/delete")
     Response<?> deleteNoteContent(@RequestBody DeleteNoteContentReqDTO deleteNoteContentReqDTO);
+
+    /**
+     * 批量新增评论内容（写入 ScyllaDB comment_content）.
+     *
+     * @param batchAddCommentContentReqDTO 批量新增入参
+     * @return 操作结果
+     */
+    @PostExchange(PREFIX + "/comment/content/batchAdd")
+    Response<?> batchAddCommentContent(@RequestBody BatchAddCommentContentReqDTO batchAddCommentContentReqDTO);
 }

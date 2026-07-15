@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-comment</artifactId>
+    <packaging>pom</packaging>
+    <name>${project.artifactId}</name>
+    <description>hannote 评论服务（聚合模块）：评论发布与批量落库。作者：Hanserwei</description>
+
+    <modules>
+        <module>hannote-comment-api</module>
+        <module>hannote-comment-biz</module>
+    </modules>
+</project>

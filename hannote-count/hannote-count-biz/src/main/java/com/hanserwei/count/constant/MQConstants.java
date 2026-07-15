@@ -12,6 +12,15 @@ package com.hanserwei.count.constant;
  */
 public interface MQConstants {
 
+    /** Topic：关注/取关源事件（与 relation 侧 TOPIC_FOLLOW_OR_UNFOLLOW 同名，计数并行直消费源 Topic） */
+    String TOPIC_FOLLOW_OR_UNFOLLOW = "FollowUnfollowTopic";
+
+    /** MQ Tag：关注（源事件） */
+    String TAG_FOLLOW = "Follow";
+
+    /** MQ Tag：取关（源事件） */
+    String TAG_UNFOLLOW = "Unfollow";
+
     /** Topic：关注数计数（写 Redis） */
     String TOPIC_COUNT_FOLLOWING = "CountFollowingTopic";
 
@@ -36,6 +45,9 @@ public interface MQConstants {
     /** 消费者组：关注数计数落库 */
     String GROUP_COUNT_FOLLOWING_2_DB = "hannote_count_following_2db_group";
 
+    /** Topic：笔记点赞/取消点赞源事件（与 note 侧 TOPIC_LIKE_UNLIKE 同名，计数并行直消费源 Topic） */
+    String TOPIC_LIKE_UNLIKE = "LikeUnlikeTopic";
+
     /** Topic：笔记点赞数计数（写 Redis） */
     String TOPIC_COUNT_NOTE_LIKE = "CountNoteLikeTopic";
 
@@ -44,6 +56,9 @@ public interface MQConstants {
 
     /** Topic：笔记收藏数计数（写 Redis） */
     String TOPIC_COUNT_NOTE_COLLECT = "CountNoteCollectTopic";
+
+    /** Topic：笔记收藏/取消收藏源事件（与 note 侧 TOPIC_COLLECT_UNCOLLECT 同名，计数并行直消费源 Topic） */
+    String TOPIC_COLLECT_UNCOLLECT = "CollectUnCollectTopic";
 
     /** Topic：笔记收藏数计数落库 */
     String TOPIC_COUNT_NOTE_COLLECT_2_DB = "CountNoteCollect2DBTopic";

@@ -29,4 +29,11 @@ public interface DistributedIdService {
      * @return 全局唯一 ID
      */
     long generateNoteId();
+
+    /**
+     * 生成评论 ID.
+     *
+     * @return 全局唯一 ID
+     */
+    long generateCommentId();
 }

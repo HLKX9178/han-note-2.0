@@ -4,6 +4,7 @@ import com.hanserwei.count.constant.MQConstants;
 import com.hanserwei.count.constant.RedisKeyConstants;
 import com.hanserwei.count.model.dto.CountFollowUnfollowMqDTO;
 import com.hanserwei.count.util.FansCountAggregator;
+import com.hanserwei.count.util.FollowUnfollowSourceParser;
 import com.hanserwei.framework.common.util.JsonUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -21,9 +23,11 @@ import org.springframework.stereotype.Component;
 import reactor.core.Disposable;
 import reactor.core.publisher.Sinks;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 计数：粉丝数消费者（高并发，Reactor 聚合写）.
@@ -35,6 +39,11 @@ import java.util.Map;
  * <p>RocketMQ 多线程回调 {@link #onMessage}，而 Reactor {@code Sinks} emit 非并发安全，
  * 故用 {@code emitNext + busyLooping} 处理并发竞争。
  *
+ * <p>已改为**并行直消费源 Topic** {@link MQConstants#TOPIC_FOLLOW_OR_UNFOLLOW}（与 relation 落库
+ * 消费者并行）。源体按 Tag 经 {@link FollowUnfollowSourceParser} 归一化为
+ * {@link CountFollowUnfollowMqDTO} 后再入聚合队列，下游聚合/落库逻辑不变。幂等门移除的短时计数
+ * 漂移由 hannote-data-align 日次纠偏自愈。
+ *
  * @author hanserwei
  * @date 2026/07/11
  * @since 0.0.1
@@ -44,14 +53,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RocketMQMessageListener(
         consumerGroup = MQConstants.GROUP_COUNT_FANS,
-        topic = MQConstants.TOPIC_COUNT_FANS)
-public class CountFansConsumer implements RocketMQListener<String> {
+        topic = MQConstants.TOPIC_FOLLOW_OR_UNFOLLOW)
+public class CountFansConsumer implements RocketMQListener<MessageExt> {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final RocketMQTemplate rocketMQTemplate;
 
     /** 聚合队列：满 1000 条或满 1s 触发一次批处理 */
-    private final Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
+    private final Sinks.Many<CountFollowUnfollowMqDTO> sink = Sinks.many().unicast().onBackpressureBuffer();
 
     /** bufferTimeout 订阅句柄，用于优雅关闭时释放 */
     private Disposable subscription;
@@ -82,9 +91,15 @@ public class CountFansConsumer implements RocketMQListener<String> {
     }
 
     @Override
-    public void onMessage(String body) {
+    public void onMessage(MessageExt message) {
+        String body = new String(message.getBody(), StandardCharsets.UTF_8);
+        // 源体按 Tag 归一化为计数 DTO 后直接入聚合队列（sink 持有 DTO，无需再序列化往返）
+        CountFollowUnfollowMqDTO dto = FollowUnfollowSourceParser.parse(message.getTags(), body);
+        if (Objects.isNull(dto)) {
+            return;
+        }
         // RocketMQ 多线程回调；Sinks emit 非并发安全，用 busyLooping 处理并发竞争
-        sink.emitNext(body, Sinks.EmitFailureHandler.busyLooping(Duration.ofSeconds(1)));
+        sink.emitNext(dto, Sinks.EmitFailureHandler.busyLooping(Duration.ofSeconds(1)));
     }
 
     /**
@@ -94,24 +109,18 @@ public class CountFansConsumer implements RocketMQListener<String> {
      * 若异常外溢会触发 Flux 的 onError 使订阅永久终止，此后所有粉丝数消息将无人处理，
      * 只能重启进程恢复。故此处宁可丢失本批（由计数对账兜底），也不能让管道断流。
      *
-     * @param bodyList 本批次原始消息体
+     * @param dtoList 本批次归一化后的计数 DTO
      */
-    private void consumeBatch(List<String> bodyList) {
+    private void consumeBatch(List<CountFollowUnfollowMqDTO> dtoList) {
         try {
-            doConsumeBatch(bodyList);
+            doConsumeBatch(dtoList);
         } catch (Exception e) {
-            log.error("## 聚合粉丝数批处理失败（已吞掉，避免终止订阅）, size: {}", bodyList.size(), e);
+            log.error("## 聚合粉丝数批处理失败（已吞掉，避免终止订阅）, size: {}", dtoList.size(), e);
         }
     }
 
-    private void doConsumeBatch(List<String> bodyList) {
-        log.info("## 聚合粉丝数消息, size: {}", bodyList.size());
-
-        // List<String> → List<CountFollowUnfollowMqDTO>
-        List<CountFollowUnfollowMqDTO> dtoList = bodyList.stream()
-                .map(body -> JsonUtils.parseObject(body, CountFollowUnfollowMqDTO.class))
-                .filter(java.util.Objects::nonNull)
-                .toList();
+    private void doConsumeBatch(List<CountFollowUnfollowMqDTO> dtoList) {
+        log.info("## 聚合粉丝数消息, size: {}", dtoList.size());
 
         // 按目标用户分组净算增量
         Map<Long, Integer> countMap = FansCountAggregator.aggregate(dtoList);

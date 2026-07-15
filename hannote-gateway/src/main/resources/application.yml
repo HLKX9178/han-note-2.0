@@ -45,6 +45,12 @@ spring:
                 - Path=/relation/**
               filters:
                 - StripPrefix=1
+            - id: hannote-comment
+              uri: lb://hannote-comment
+              predicates:
+                - Path=/comment/**
+              filters:
+                - StripPrefix=1
       # 开启基于服务发现的动态路由（可选，按需保留）
       discovery:
         locator:

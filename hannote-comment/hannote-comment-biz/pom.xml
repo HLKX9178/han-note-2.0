@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.hanserwei</groupId>
+        <artifactId>hannote-comment</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>hannote-comment-biz</artifactId>
+    <packaging>jar</packaging>
+    <name>${project.artifactId}</name>
+    <description>评论服务业务层：评论发布与批量落库、启动模块。作者：Hanserwei</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <!--
+              okhttp/okio 版本对齐（同 hannote-data-align）：PowerJob worker 传递 okhttp:4.12.0，
+              nacos-client 侧的 OpenTelemetry 传递 okhttp-jvm:5.3.2，且 grpc 链把 okio 就近降到 3.4.0，
+              运行期 okhttp 5.3.2 调 okio 3.16 才有的 Okio.socket(Socket) → NoSuchMethodError，worker 启动失败。
+              统一到 okhttp 5.3.2 + okio 3.16.4。
+            -->
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>5.3.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>3.16.4</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio-jvm</artifactId>
+                <version>3.16.4</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-comment-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-common</artifactId>
+        </dependency>
+        <!-- 业务接口日志组件 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-biz-operationlog</artifactId>
+        </dependency>
+        <!-- 登录用户上下文组件 -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-biz-context</artifactId>
+        </dependency>
+        <!-- 服务间调用组件（HTTP Interface + LoadBalancer） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-spring-boot-starter-rpc</artifactId>
+        </dependency>
+        <!-- 分布式 ID 服务契约（生成评论 ID） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-distributed-id-generator-api</artifactId>
+        </dependency>
+        <!-- KV 键值服务契约（批量存评论正文） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-kv-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Guava（Preconditions 校验 + RateLimiter 令牌桶） -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <!-- Hutool Core（CollUtil 工具） -->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-core</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus + PostgreSQL -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- RocketMQ starter + 原生客户端（批量消费） -->
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-client</artifactId>
+        </dependency>
+
+        <!-- Spring Retry（仅用 RetryTemplate 编程式重试，不用 @Retryable，故无需 AOP） -->
+        <!-- 版本由 Spring Boot 依赖管理 BOM 提供；若报「找不到版本」再显式加 <version> -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+
+        <!-- 服务发现 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- PowerJob Worker（手动 @Bean 初始化，见 config/PowerJobConfig）：发送失败 MQ 兜底扫表重发 -->
+        <dependency>
+            <groupId>tech.powerjob</groupId>
+            <artifactId>powerjob-worker</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,41 @@
+# 复制为 application-dev.yml 并填入真实值（真实文件已被 .gitignore 忽略）
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: <nacos-addr>
+        namespace: hannote
+        group: DEFAULT_GROUP
+
+  # PostgreSQL（数据库 hannote）
+  datasource:
+    url: jdbc:postgresql://<pg-host>:5432/hannote
+    username: <pg-user>
+    password: <pg-password>
+    driver-class-name: org.postgresql.Driver
+
+# RocketMQ（评论发布异步写 + 批量消费落库）
+rocketmq:
+  name-server: <rocketmq-name-server>     # 如 127.0.0.1:9876
+  producer:
+    group: hannote_comment_group
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 0       # 自定义重试接管，starter 不再重试
+    retry-times-when-send-async-failed: 0
+    max-message-size: 4096
+  consumer:
+    group: hannote_comment_group
+    pull-batch-size: 30
+
+# PowerJob Worker（发送失败 MQ 兜底扫表重发，手动 @Bean 读取，见 config/PowerJobConfig）
+# 需先在 powerjob-server 控制台注册应用名 hannote-comment，并配置定时任务指向 MqResendProcessor
+powerjob:
+  worker:
+    server-address: <powerjob-server-addr>:7700   # powerjob-server HTTP 端口默认 7700，多地址逗号分隔
+    app-name: hannote-comment                      # 需与 powerjob-server 控制台已注册的应用名一致
+    port: 27777
+    store-strategy: disk
+
+logging:
+  level:
+    com.hanserwei.comment.domain.mapper: debug
