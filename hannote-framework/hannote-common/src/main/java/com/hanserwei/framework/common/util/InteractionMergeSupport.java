@@ -9,9 +9,15 @@ import java.util.function.Function;
 /**
  * 互动消息内存级操作合并工具.
  *
- * <p>批量顺序消费同一批消息时，对同一 {@code (主体, 目标)} 的连续切换操作做抵消：
- * 偶数次操作最终状态回到原点（抵消丢弃），奇数次仅保留最后一次操作。依赖消费顺序，
- * 故输入列表须为顺序消费得到的批次（生产端按主体 hashKey 有序发送）。
+ * <p>批量顺序消费同一批消息时，对同一 {@code (主体, 目标)} 的多次操作只保留<b>最后一条</b>：
+ * 消息体中的 {@code type} 是<b>绝对状态</b>（1 点赞/关注、0 取消），而非「切换」指令，
+ * 故批次内最后一条即该 {@code (主体, 目标)} 的最终状态，前序操作均可安全丢弃。
+ * 依赖消费顺序，故输入列表须为顺序消费得到的批次（生产端按主体 hashKey 有序发送）。
+ *
+ * <p>不按「奇偶抵消」实现：那样隐含「消息严格交替」的假设，一旦出现重复投递或上游并发竞态
+ * 导致的连续同类型消息（如 {@code type=1, type=1}），偶数条会被整组丢弃，最终状态丢失。
+ * 取最后一条则不依赖该假设。下游 SQL 的 {@code WHERE status <> EXCLUDED.status} /
+ * {@code ON CONFLICT DO NOTHING} 幂等守卫会滤掉与库中现状相同的无效写入。
  *
  * <p>点赞/收藏/关注等切换型互动的批量消费者共用此逻辑。
  *
@@ -25,33 +31,27 @@ public final class InteractionMergeSupport {
     }
 
     /**
-     * 按 {@code (subjectKey, targetKey)} 分组做奇偶抵消，奇数组取最后一次操作.
+     * 按 {@code (subjectKey, targetKey)} 分组，每组取最后一条操作作为最终状态.
      *
      * @param ops        顺序消费得到的操作列表
      * @param subjectKey 操作主体键提取（如用户 ID）
      * @param targetKey  操作目标键提取（如笔记 ID / 被关注用户 ID）
      * @param <T>        操作 DTO 类型
-     * @return 合并后的最终操作列表（抵消的组不出现）
+     * @return 合并后的最终操作列表，每个 {@code (主体, 目标)} 至多一条
      */
     public static <T> List<T> mergeByLastOp(List<T> ops,
                                             Function<T, Long> subjectKey,
                                             Function<T, Long> targetKey) {
-        // (主体 -> (目标 -> 该组操作按序列表))，LinkedHashMap 保稳定顺序
-        Map<Long, Map<Long, List<T>>> grouped = new LinkedHashMap<>();
+        // (主体 -> (目标 -> 该组最后一条操作))，LinkedHashMap 保稳定顺序；后来者直接覆盖前序
+        Map<Long, Map<Long, T>> lastOps = new LinkedHashMap<>();
         for (T op : ops) {
-            grouped.computeIfAbsent(subjectKey.apply(op), k -> new LinkedHashMap<>())
-                    .computeIfAbsent(targetKey.apply(op), k -> new ArrayList<>())
-                    .add(op);
+            lastOps.computeIfAbsent(subjectKey.apply(op), k -> new LinkedHashMap<>())
+                    .put(targetKey.apply(op), op);
         }
 
         List<T> result = new ArrayList<>();
-        for (Map<Long, List<T>> byTarget : grouped.values()) {
-            for (List<T> group : byTarget.values()) {
-                // 偶数次抵消丢弃；奇数次取最后一次
-                if (group.size() % 2 == 1) {
-                    result.add(group.get(group.size() - 1));
-                }
-            }
+        for (Map<Long, T> byTarget : lastOps.values()) {
+            result.addAll(byTarget.values());
         }
         return result;
     }
