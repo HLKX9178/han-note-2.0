@@ -35,4 +35,7 @@ public interface CreateTableMapper {
 
     /** 用户发布笔记数计数变更表（user_id，10415 修正为 user_id 维度） */
     void createDataAlignNotePublishCountTempTable(@Param("tableNameSuffix") String tableNameSuffix);
+
+    /** 笔记评论总数变更表（note_id） */
+    void createDataAlignNoteCommentCountTempTable(@Param("tableNameSuffix") String tableNameSuffix);
 }

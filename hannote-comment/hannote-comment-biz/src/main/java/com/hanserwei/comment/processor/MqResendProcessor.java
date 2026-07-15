@@ -71,8 +71,13 @@ public class MqResendProcessor implements BasicProcessor {
         int failed = 0;
         for (MqSendFailDO row : pending) {
             try {
-                rocketMQTemplate.syncSend(row.getTopic(),
-                        MessageBuilder.withPayload(row.getBody()).build());
+                if (Boolean.TRUE.equals(row.getOrderly())) {
+                    rocketMQTemplate.syncSendOrderly(row.getTopic(),
+                            MessageBuilder.withPayload(row.getBody()).build(), row.getHashKey());
+                } else {
+                    rocketMQTemplate.syncSend(row.getTopic(),
+                            MessageBuilder.withPayload(row.getBody()).build());
+                }
                 // 重发成功 → 物理删除
                 mqSendFailDOMapper.deleteById(row.getId());
                 resent++;

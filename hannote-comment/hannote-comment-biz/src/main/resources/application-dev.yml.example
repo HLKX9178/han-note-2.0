@@ -14,6 +14,13 @@ spring:
     password: <pg-password>
     driver-class-name: org.postgresql.Driver
 
+  data:
+    redis:
+      host: <redis-host>
+      port: 6379
+      password: <redis-password>
+      database: 0
+
 # RocketMQ（评论发布异步写 + 批量消费落库）
 rocketmq:
   name-server: <rocketmq-name-server>     # 如 127.0.0.1:9876

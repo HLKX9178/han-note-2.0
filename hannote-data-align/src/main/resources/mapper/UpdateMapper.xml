@@ -30,4 +30,11 @@
         UPDATE t_note_count SET collect_total = #{total} WHERE note_id = #{noteId}
     </update>
 
+    <insert id="updateNoteCommentTotal">
+        INSERT INTO t_note_count (note_id, comment_total)
+        VALUES (#{noteId}, #{total})
+        ON CONFLICT (note_id)
+        DO UPDATE SET comment_total = EXCLUDED.comment_total
+    </insert>
+
 </mapper>

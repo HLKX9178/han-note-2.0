@@ -63,6 +63,7 @@ public class DeleteExpiredTableProcessor implements BasicProcessor {
                     deleteTableMapper.dropDataAlignUserLikeCountTempTable(suffix);
                     deleteTableMapper.dropDataAlignNoteLikeCountTempTable(suffix);
                     deleteTableMapper.dropDataAlignNotePublishCountTempTable(suffix);
+                    deleteTableMapper.dropDataAlignNoteCommentCountTempTable(suffix);
                 } catch (Exception e) {
                     omsLogger.error("## 删除日增量表失败, suffix={}", suffix, e);
                     log.error("## 删除日增量表失败, suffix={}", suffix, e);

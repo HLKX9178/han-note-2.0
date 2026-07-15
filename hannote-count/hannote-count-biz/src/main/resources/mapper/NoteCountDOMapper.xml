@@ -19,4 +19,11 @@
         DO UPDATE SET collect_total = t_note_count.collect_total + #{count}
     </insert>
 
+    <insert id="insertOrUpdateCommentTotalByNoteId">
+        INSERT INTO t_note_count (note_id, comment_total)
+        VALUES (#{noteId}, GREATEST(0, #{count}))
+        ON CONFLICT (note_id)
+        DO UPDATE SET comment_total = GREATEST(0, t_note_count.comment_total + #{count})
+    </insert>
+
 </mapper>

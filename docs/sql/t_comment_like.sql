@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS t_comment_like (
     create_time  TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uk_comment_like_user_comment ON t_comment_like(user_id, comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_like_comment_id ON t_comment_like(comment_id);
 
 COMMENT ON TABLE  t_comment_like             IS '评论点赞表';
 COMMENT ON COLUMN t_comment_like.id          IS '主键 ID';

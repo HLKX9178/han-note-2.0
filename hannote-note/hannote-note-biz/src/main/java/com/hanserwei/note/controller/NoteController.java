@@ -2,6 +2,8 @@ package com.hanserwei.note.controller;
 
 import com.hanserwei.framework.biz.operationlog.aspect.ApiOperationLog;
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.note.api.dto.req.FindPublishedNoteReqDTO;
+import com.hanserwei.note.api.dto.resp.FindPublishedNoteRspDTO;
 import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
@@ -36,6 +38,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class NoteController {
 
     private final NoteService noteService;
+
+    /**
+     * 查询正常发布中的笔记（内网 RPC）.
+     */
+    @PostMapping("/findPublishedById")
+    public Response<FindPublishedNoteRspDTO> findPublishedById(
+            @Validated @RequestBody FindPublishedNoteReqDTO request) {
+        return noteService.findPublishedById(request);
+    }
 
     /**
      * 笔记发布（图文 / 视频）.

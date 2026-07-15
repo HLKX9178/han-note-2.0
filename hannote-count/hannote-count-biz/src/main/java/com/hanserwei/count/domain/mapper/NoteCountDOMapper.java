@@ -30,4 +30,13 @@ public interface NoteCountDOMapper extends BaseMapper<NoteCountDO> {
      * @return 受影响行数
      */
     int insertOrUpdateCollectTotalByNoteId(@Param("count") Integer count, @Param("noteId") Long noteId);
+
+    /**
+     * 新增或累加笔记评论总数，最低为 0.
+     *
+     * @param count 有符号增量
+     * @param noteId 笔记 ID
+     * @return 影响行数
+     */
+    int insertOrUpdateCommentTotalByNoteId(@Param("count") Integer count, @Param("noteId") Long noteId);
 }

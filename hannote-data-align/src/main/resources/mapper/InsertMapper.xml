@@ -37,4 +37,9 @@
         VALUES (#{userId}) ON CONFLICT (user_id) DO NOTHING
     </insert>
 
+    <insert id="insertNoteCommentCountTemp">
+        INSERT INTO t_data_align_note_comment_count_temp_${tableNameSuffix} (note_id)
+        VALUES (#{noteId}) ON CONFLICT (note_id) DO NOTHING
+    </insert>
+
 </mapper>

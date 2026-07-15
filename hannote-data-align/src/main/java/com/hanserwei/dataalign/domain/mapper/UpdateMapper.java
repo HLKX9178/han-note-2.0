@@ -34,4 +34,7 @@ public interface UpdateMapper {
 
     /** t_note_count.collect_total（笔记被收藏数） */
     int updateNoteCollectTotal(@Param("noteId") long noteId, @Param("total") int total);
+
+    /** t_note_count.comment_total（笔记评论总数） */
+    int updateNoteCommentTotal(@Param("noteId") long noteId, @Param("total") int total);
 }

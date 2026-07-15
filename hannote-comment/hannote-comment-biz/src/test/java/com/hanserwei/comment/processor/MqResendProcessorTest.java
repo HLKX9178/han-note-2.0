@@ -77,4 +77,19 @@ class MqResendProcessorTest {
         verify(mqSendFailDOMapper).updateById(r);
         verify(mqSendFailDOMapper, never()).deleteById(eq(2L));
     }
+
+    @Test
+    void 顺序消息重发_恢复原hashKey() {
+        MqSendFailDO r = row(3L);
+        r.setOrderly(true);
+        r.setHashKey("26001");
+        when(rocketMQTemplate.syncSendOrderly(anyString(), any(Message.class), eq("26001")))
+                .thenReturn(null);
+
+        int[] result = processor.resendBatch(List.of(r));
+
+        assertThat(result).containsExactly(1, 0);
+        verify(rocketMQTemplate).syncSendOrderly(anyString(), any(Message.class), eq("26001"));
+        verify(mqSendFailDOMapper).deleteById(3L);
+    }
 }

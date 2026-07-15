@@ -86,7 +86,7 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
-        <!-- RocketMQ（计数增减异步化预留，本期无生产者/消费者） -->
+        <!-- RocketMQ（关注、点赞、收藏、发布与评论计数异步写入） -->
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
             <artifactId>rocketmq-spring-boot-starter</artifactId>

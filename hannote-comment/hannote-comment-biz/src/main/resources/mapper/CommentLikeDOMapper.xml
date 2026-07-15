@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hanserwei.comment.domain.mapper.CommentLikeDOMapper">
+
+    <resultMap id="ChangedLikeResultMap" type="com.hanserwei.comment.domain.dataobject.CommentLikeDO">
+        <result column="user_id" property="userId"/>
+        <result column="comment_id" property="commentId"/>
+    </resultMap>
+
+    <select id="batchInsertReturning" resultMap="ChangedLikeResultMap" affectData="true">
+        INSERT INTO t_comment_like (user_id, comment_id, create_time)
+        SELECT source.user_id, source.comment_id, source.create_time
+        FROM (VALUES
+        <foreach collection="items" item="item" separator=",">
+            (#{item.userId}, #{item.commentId}, #{item.createTime})
+        </foreach>
+        ) AS source(user_id, comment_id, create_time)
+        JOIN t_comment comment ON comment.id = source.comment_id
+        ON CONFLICT (user_id, comment_id) DO NOTHING
+        RETURNING user_id, comment_id
+    </select>
+
+    <select id="batchDeleteReturning" resultMap="ChangedLikeResultMap" affectData="true">
+        DELETE FROM t_comment_like
+        WHERE (user_id, comment_id) IN
+        <foreach collection="items" item="item" open="(" close=")" separator=",">
+            (#{item.userId}, #{item.commentId})
+        </foreach>
+        RETURNING user_id, comment_id
+    </select>
+
+    <delete id="deleteByCommentIds">
+        DELETE FROM t_comment_like WHERE comment_id IN
+        <foreach collection="commentIds" item="commentId" open="(" close=")" separator=",">
+            #{commentId}
+        </foreach>
+    </delete>
+
+</mapper>

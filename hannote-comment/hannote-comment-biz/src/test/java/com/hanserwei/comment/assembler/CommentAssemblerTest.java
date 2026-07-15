@@ -82,7 +82,7 @@ class CommentAssemblerTest {
     @Test
     void assemble_replyToLevelOne_isLevelTwo() {
         CommentDO replied = CommentDO.builder()
-                .id(50L).level(CommentLevelEnum.ONE.getCode()).parentId(9L).userId(7L).build();
+                .id(50L).noteId(9L).level(CommentLevelEnum.ONE.getCode()).parentId(9L).userId(7L).build();
         PublishCommentMqDTO dto = PublishCommentMqDTO.builder()
                 .commentId(102L).noteId(9L).creatorId(1L)
                 .content("re").replyCommentId(50L).createTime(now).build();
@@ -99,7 +99,7 @@ class CommentAssemblerTest {
     @Test
     void assemble_replyToLevelTwo_parentIsRoot() {
         CommentDO repliedLevel2 = CommentDO.builder()
-                .id(60L).level(CommentLevelEnum.TWO.getCode()).parentId(50L).userId(8L).build();
+                .id(60L).noteId(9L).level(CommentLevelEnum.TWO.getCode()).parentId(50L).userId(8L).build();
         PublishCommentMqDTO dto = PublishCommentMqDTO.builder()
                 .commentId(103L).noteId(9L).creatorId(1L)
                 .content("re2").replyCommentId(60L).createTime(now).build();
@@ -109,5 +109,19 @@ class CommentAssemblerTest {
         assertEquals(CommentLevelEnum.TWO.getCode(), bo.getLevel());
         assertEquals(50L, bo.getParentId());   // 取根一级评论 ID
         assertEquals(8L, bo.getReplyUserId());
+    }
+
+    /** 跨笔记回复必须拒绝，避免污染另一篇笔记的评论树 */
+    @Test
+    void assemble_crossNoteReply_throws() {
+        CommentDO replied = CommentDO.builder()
+                .id(50L).noteId(10L).level(CommentLevelEnum.ONE.getCode()).userId(7L).build();
+        PublishCommentMqDTO dto = PublishCommentMqDTO.builder()
+                .commentId(105L).noteId(9L).creatorId(1L)
+                .content("re").replyCommentId(50L).createTime(now).build();
+
+        BizException ex = assertThrows(BizException.class,
+                () -> assembler.assemble(List.of(dto), Map.of(50L, replied)));
+        assertEquals(ResponseCodeEnum.REPLY_COMMENT_NOTE_MISMATCH.getErrorCode(), ex.getErrorCode());
     }
 }

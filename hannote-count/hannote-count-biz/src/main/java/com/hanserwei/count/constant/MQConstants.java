@@ -86,4 +86,16 @@ public interface MQConstants {
 
     /** 消费者组：笔记发布数计数 */
     String GROUP_COUNT_NOTE_OPERATE = "hannote_count_note_operate_group";
+
+    /** Topic：评论真实新增/删除产生的笔记评论总数变更 */
+    String TOPIC_COMMENT_COUNT_CHANGED = "CommentCountChangedTopic";
+
+    /** Topic：聚合后的笔记评论总数落库 */
+    String TOPIC_COUNT_NOTE_COMMENT_2_DB = "CountNoteComment2DBTopic";
+
+    /** 消费者组：笔记评论总数聚合 */
+    String GROUP_COUNT_NOTE_COMMENT = "hannote_count_note_comment_group";
+
+    /** 消费者组：笔记评论总数落库 */
+    String GROUP_COUNT_NOTE_COMMENT_2_DB = "hannote_count_note_comment_2db_group";
 }

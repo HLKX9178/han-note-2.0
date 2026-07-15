@@ -33,6 +33,12 @@ public class MqSendFailDO {
     /** 消息体 JSON */
     private String body;
 
+    /** 是否为顺序消息 */
+    private Boolean orderly;
+
+    /** 顺序消息分片键 */
+    private String hashKey;
+
     /** 已补偿重发次数 */
     private Integer retryCount;
 

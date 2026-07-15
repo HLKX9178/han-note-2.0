@@ -29,6 +29,8 @@ public interface SelectMapper {
 
     List<Long> selectBatchNotePublishCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    List<Long> selectBatchNoteCommentCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
+
     // ------------------------- 源头表：count 真实值 -------------------------
 
     /** t_following 关注表：某用户的关注总数 */
@@ -51,4 +53,7 @@ public interface SelectMapper {
 
     /** t_note 笔记表：某用户已发布的有效笔记数（status=1，NoteStatusEnum.NORMAL） */
     int countNotePublishByUserId(@Param("userId") long userId);
+
+    /** t_comment 评论表：某笔记的全部有效评论数 */
+    int countNoteCommentByNoteId(@Param("noteId") long noteId);
 }

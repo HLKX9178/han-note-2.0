@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 /**
  * 分片对齐任务的共享协作者聚合.
  *
- * <p>把 7 个对齐处理器都要用到的 Mapper、RedisTemplate、分片数集中于一个 Bean，
+ * <p>把 8 个对齐处理器都要用到的 Mapper、RedisTemplate、分片数集中于一个 Bean，
  * 由抽象基类 {@code AbstractCountAlignProcessor} 与各子类共享，避免逐个处理器重复注入。
  *
  * @author hanserwei

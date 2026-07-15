@@ -28,4 +28,6 @@ public interface DeleteMapper {
     void batchDeleteUserCollectCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("ids") List<Long> ids);
 
     void batchDeleteNotePublishCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("ids") List<Long> ids);
+
+    void batchDeleteNoteCommentCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("ids") List<Long> ids);
 }

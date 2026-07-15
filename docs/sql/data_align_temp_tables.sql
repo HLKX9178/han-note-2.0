@@ -54,8 +54,14 @@ CREATE TABLE IF NOT EXISTS t_data_align_note_publish_count_temp_${suffix} (
     user_id BIGINT NOT NULL UNIQUE
 );
 
+-- 笔记评论总数变更（note_id）
+CREATE TABLE IF NOT EXISTS t_data_align_note_comment_count_temp_${suffix} (
+    id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    note_id BIGINT NOT NULL UNIQUE
+);
+
 -- ----------------------------------------------------------------------------
 -- 对齐任务回写的目标表（已存在，由 hannote-count 属主维护，此处仅备注）：
 --   t_user_count(following_total, fans_total, like_total, collect_total, note_total)
---   t_note_count(like_total, collect_total)
+--   t_note_count(like_total, collect_total, comment_total)
 -- ============================================================================

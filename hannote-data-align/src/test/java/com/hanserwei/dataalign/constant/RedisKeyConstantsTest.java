@@ -33,6 +33,7 @@ class RedisKeyConstantsTest {
         assertEquals("likeTotal", RedisKeyConstants.FIELD_LIKE_TOTAL);
         assertEquals("collectTotal", RedisKeyConstants.FIELD_COLLECT_TOTAL);
         assertEquals("noteTotal", RedisKeyConstants.FIELD_NOTE_TOTAL);
+        assertEquals("commentTotal", RedisKeyConstants.FIELD_COMMENT_TOTAL);
     }
 
     @Test
@@ -53,5 +54,7 @@ class RedisKeyConstantsTest {
                 RedisKeyConstants.buildBloomUserFollowKey(date));
         assertEquals("hannote:dataAlign:user:fans:" + date,
                 RedisKeyConstants.buildBloomUserFansKey(date));
+        assertEquals("hannote:dataAlign:note:comment:noteIds:" + date,
+                RedisKeyConstants.buildBloomNoteCommentNoteIdKey(date));
     }
 }

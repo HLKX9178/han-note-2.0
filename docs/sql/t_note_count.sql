@@ -17,4 +17,4 @@ COMMENT ON COLUMN t_note_count.id            IS '主键 ID';
 COMMENT ON COLUMN t_note_count.note_id       IS '笔记 ID';
 COMMENT ON COLUMN t_note_count.like_total    IS '获得点赞总数';
 COMMENT ON COLUMN t_note_count.collect_total IS '获得收藏总数';
-COMMENT ON COLUMN t_note_count.comment_total IS '被评论总数（评论服务未建，先留位）';
+COMMENT ON COLUMN t_note_count.comment_total IS '被评论总数';

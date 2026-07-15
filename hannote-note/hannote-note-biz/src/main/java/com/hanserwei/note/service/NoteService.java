@@ -1,6 +1,8 @@
 package com.hanserwei.note.service;
 
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.note.api.dto.req.FindPublishedNoteReqDTO;
+import com.hanserwei.note.api.dto.resp.FindPublishedNoteRspDTO;
 import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
@@ -21,6 +23,14 @@ import com.hanserwei.note.model.vo.UpdateNoteVisibleOnlyMeReqVO;
  * @since 0.0.1
  */
 public interface NoteService {
+
+    /**
+     * 查询正常发布中的笔记最小信息.
+     *
+     * @param request 查询入参
+     * @return 笔记信息；不存在时 data 为 null
+     */
+    Response<FindPublishedNoteRspDTO> findPublishedById(FindPublishedNoteReqDTO request);
 
     /**
      * 笔记发布.

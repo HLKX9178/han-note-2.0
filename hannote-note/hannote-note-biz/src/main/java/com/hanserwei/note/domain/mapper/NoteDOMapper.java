@@ -2,6 +2,7 @@ package com.hanserwei.note.domain.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hanserwei.note.domain.dataobject.NoteDO;
+import com.hanserwei.note.api.dto.resp.FindPublishedNoteRspDTO;
 import org.apache.ibatis.annotations.Param;
 
 /**
@@ -20,4 +21,12 @@ public interface NoteDOMapper extends BaseMapper<NoteDO> {
      * @return 发布者用户 ID；笔记不存在返回 {@code null}
      */
     Long selectCreatorIdByNoteId(@Param("noteId") Long noteId);
+
+    /**
+     * 查询正常发布中的笔记最小信息.
+     *
+     * @param noteId 笔记 ID
+     * @return 笔记最小信息
+     */
+    FindPublishedNoteRspDTO selectPublishedById(@Param("noteId") Long noteId);
 }
