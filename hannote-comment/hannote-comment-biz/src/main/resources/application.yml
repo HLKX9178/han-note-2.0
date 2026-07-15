@@ -9,6 +9,15 @@ spring:
   threads:
     virtual:
       enabled: true
+  cloud:
+    loadbalancer:
+      retry:
+        # 必须显式关闭：本服务为了 MQ 发送重试引入了 spring-retry，而 Spring Cloud 的
+        # LoadBalancerAutoConfiguration 仅在「spring-retry 不存在或 LB 重试被关闭」时才声明
+        # LoadBalancerInterceptor（否则改为声明 RetryLoadBalancerInterceptor）。而 rpc starter 的
+        # LoadBalancedRestClientConfigurer 依赖前者，不关则该 Bean 缺失，服务无法启动。
+        # 关闭后与其余未引入 spring-retry 的服务行为一致（本就无 LB 重试）。
+        enabled: false
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
