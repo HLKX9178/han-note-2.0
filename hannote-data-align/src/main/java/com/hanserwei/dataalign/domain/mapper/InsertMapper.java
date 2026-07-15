@@ -34,4 +34,7 @@ public interface InsertMapper {
 
     /** 用户发布笔记数变更：发布者 ID */
     void insertNotePublishCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("userId") Long userId);
+
+    /** 笔记评论总数变更：笔记 ID */
+    void insertNoteCommentCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("noteId") Long noteId);
 }

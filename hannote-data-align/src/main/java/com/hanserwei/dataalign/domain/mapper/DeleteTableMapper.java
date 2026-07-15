@@ -26,4 +26,6 @@ public interface DeleteTableMapper {
     void dropDataAlignNoteLikeCountTempTable(@Param("tableNameSuffix") String tableNameSuffix);
 
     void dropDataAlignNotePublishCountTempTable(@Param("tableNameSuffix") String tableNameSuffix);
+
+    void dropDataAlignNoteCommentCountTempTable(@Param("tableNameSuffix") String tableNameSuffix);
 }

@@ -37,4 +37,9 @@
         <foreach collection="ids" open="(" item="id" close=")" separator=",">#{id}</foreach>
     </delete>
 
+    <delete id="batchDeleteNoteCommentCountTemp">
+        DELETE FROM t_data_align_note_comment_count_temp_${tableNameSuffix} WHERE note_id IN
+        <foreach collection="ids" open="(" item="id" close=")" separator=",">#{id}</foreach>
+    </delete>
+
 </mapper>

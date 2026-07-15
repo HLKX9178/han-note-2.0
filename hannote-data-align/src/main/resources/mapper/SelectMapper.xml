@@ -32,6 +32,10 @@
         SELECT user_id FROM t_data_align_note_publish_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
     </select>
 
+    <select id="selectBatchNoteCommentCountTemp" resultType="long">
+        SELECT note_id FROM t_data_align_note_comment_count_temp_${tableNameSuffix} ORDER BY id LIMIT #{batchSize}
+    </select>
+
     <!-- ================= 源头表：count 真实值 ================= -->
 
     <select id="countFollowingByUserId" resultType="int">
@@ -64,6 +68,10 @@
 
     <select id="countNotePublishByUserId" resultType="int">
         SELECT count(*) FROM t_note WHERE creator_id = #{userId} AND status = 1
+    </select>
+
+    <select id="countNoteCommentByNoteId" resultType="int">
+        SELECT count(*) FROM t_comment WHERE note_id = #{noteId}
     </select>
 
 </mapper>

@@ -1,0 +1,86 @@
+### hannote 评论服务二期接口测试（IntelliJ HTTP Client）
+#
+# gateway 环境：{{commentHost}}=http://localhost:8000，{{commentBasePath}}=/comment
+# direct 环境：{{commentHost}}=http://localhost:8090，{{commentBasePath}}=""
+# 经网关路径遵循当前 StripPrefix 双段规则：/comment/comment/*。
+
+### 1. 发布一级评论（异步落库）
+POST {{commentHost}}{{commentBasePath}}/comment/publish
+Authorization: Bearer {{token}}
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "noteId": {{noteId}},
+  "content": "评论服务二期联调评论",
+  "imageUrl": ""
+}
+
+> {%
+    client.test("发布评论请求已受理", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, JSON.stringify(response.body));
+    });
+%}
+
+### 2. 一级评论分页
+POST {{commentHost}}{{commentBasePath}}/comment/list
+Authorization: Bearer {{token}}
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "noteId": {{noteId}},
+  "pageNo": 1
+}
+
+> {%
+    client.test("一级评论分页字段完整", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, JSON.stringify(response.body));
+        client.assert(response.body.pageSize === 10, "pageSize 应为 10");
+        client.assert(response.body.commentTotal >= response.body.totalCount,
+            "commentTotal 不应小于一级评论总数");
+    });
+%}
+
+### 3. 二级评论分页（parentCommentId 需替换为真实一级评论 ID）
+POST {{commentHost}}{{commentBasePath}}/comment/child/list
+Authorization: Bearer {{token}}
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "parentCommentId": {{parentCommentId}},
+  "pageNo": 1
+}
+
+### 4. 点赞评论
+POST {{commentHost}}{{commentBasePath}}/comment/like
+Authorization: Bearer {{token}}
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "commentId": {{commentId}}
+}
+
+### 5. 取消点赞评论
+POST {{commentHost}}{{commentBasePath}}/comment/unlike
+Authorization: Bearer {{token}}
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "commentId": {{commentId}}
+}
+
+### 6. 删除本人评论（会级联删除对应回复分支）
+POST {{commentHost}}{{commentBasePath}}/comment/delete
+Authorization: Bearer {{token}}
+userId: {{userId}}
+Content-Type: application/json
+
+{
+  "commentId": {{commentId}}
+}

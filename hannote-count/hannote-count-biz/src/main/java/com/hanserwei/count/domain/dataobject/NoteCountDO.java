@@ -38,6 +38,6 @@ public class NoteCountDO {
     /** 获得收藏总数 */
     private Long collectTotal;
 
-    /** 被评论总数（评论服务未建，先留位） */
+    /** 被评论总数 */
     private Long commentTotal;
 }

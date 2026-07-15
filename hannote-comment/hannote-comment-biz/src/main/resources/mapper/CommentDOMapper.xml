@@ -9,6 +9,7 @@
     -->
     <resultMap id="ReplyAssembleResultMap" type="com.hanserwei.comment.domain.dataobject.CommentDO">
         <id column="id" property="id"/>
+        <result column="note_id" property="noteId"/>
         <result column="user_id" property="userId"/>
         <result column="level" property="level"/>
         <result column="parent_id" property="parentId"/>
@@ -19,7 +20,7 @@
       返回的 CommentDO 其余字段均为 null，勿作通用查询复用。
     -->
     <select id="selectByCommentIds" resultMap="ReplyAssembleResultMap" parameterType="list">
-        SELECT id, level, parent_id, user_id
+        SELECT id, note_id, level, parent_id, user_id
         FROM t_comment
         WHERE id IN
         <foreach collection="commentIds" open="(" separator="," close=")" item="commentId">
@@ -27,21 +28,178 @@
         </foreach>
     </select>
 
-    <!-- 批量插入（PostgreSQL 主键冲突忽略，替代 MySQL INSERT IGNORE） -->
-    <insert id="batchInsert" parameterType="list">
+    <resultMap id="InsertedCommentResultMap" type="com.hanserwei.comment.domain.dataobject.CommentDO">
+        <id column="id" property="id"/>
+        <result column="note_id" property="noteId"/>
+        <result column="level" property="level"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 批量插入并返回真实新增行；主键冲突不返回，作为后续副作用的幂等门 -->
+    <select id="batchInsertReturning" parameterType="list" resultMap="InsertedCommentResultMap" affectData="true">
         INSERT INTO t_comment (id, note_id, user_id,
         content_uuid, is_content_empty, image_url,
-        level, reply_total, like_total,
+        level, reply_total, like_total, first_reply_comment_id, heat,
         parent_id, reply_comment_id, reply_user_id,
         is_top, create_time, update_time)
         VALUES
         <foreach collection="comments" item="c" separator=",">
             (#{c.id}, #{c.noteId}, #{c.userId}, #{c.contentUuid}, #{c.isContentEmpty},
              #{c.imageUrl}, #{c.level}, #{c.replyTotal}, #{c.likeTotal},
+             #{c.firstReplyCommentId}, #{c.heat},
              #{c.parentId}, #{c.replyCommentId}, #{c.replyUserId},
              #{c.isTop}, #{c.createTime}, #{c.updateTime})
         </foreach>
         ON CONFLICT (id) DO NOTHING
-    </insert>
+        RETURNING id, note_id, level, parent_id, create_time
+    </select>
+
+    <update id="recomputeRootStatistics">
+        WITH root_stats AS (
+            SELECT root.id,
+                   COUNT(child.id) AS reply_total,
+                   COALESCE((ARRAY_AGG(child.id ORDER BY child.create_time, child.id)
+                       FILTER (WHERE child.id IS NOT NULL))[1], 0) AS first_reply_comment_id
+            FROM t_comment root
+            LEFT JOIN t_comment child
+                   ON child.parent_id = root.id
+                  AND child.level = 2
+            WHERE root.id IN
+            <foreach collection="rootCommentIds" open="(" separator="," close=")" item="rootId">
+                #{rootId}
+            </foreach>
+              AND root.level = 1
+            GROUP BY root.id
+        )
+        UPDATE t_comment root
+        SET reply_total = stats.reply_total,
+            first_reply_comment_id = stats.first_reply_comment_id,
+            heat = ROUND(COALESCE(root.like_total, 0) * 0.70 + stats.reply_total * 0.30, 2),
+            update_time = CURRENT_TIMESTAMP
+        FROM root_stats stats
+        WHERE root.id = stats.id
+    </update>
+
+    <select id="countRootByNoteId" resultType="long">
+        SELECT count(*) FROM t_comment WHERE note_id = #{noteId} AND level = 1
+    </select>
+
+    <select id="selectRootPageIds" resultType="long">
+        SELECT id
+        FROM t_comment
+        WHERE note_id = #{noteId} AND level = 1
+        ORDER BY is_top DESC, heat DESC, id DESC
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="selectHotRoots" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        SELECT id, heat, is_top
+        FROM t_comment
+        WHERE note_id = #{noteId} AND level = 1
+        ORDER BY is_top DESC, heat DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectChildPageIds" resultType="long">
+        SELECT id
+        FROM t_comment
+        WHERE parent_id = #{parentId} AND level = 2
+        ORDER BY create_time ASC, id ASC
+        OFFSET #{offset} LIMIT #{limit}
+    </select>
+
+    <select id="selectEarlyChildren" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        SELECT id, create_time
+        FROM t_comment
+        WHERE parent_id = #{parentId} AND level = 2
+        ORDER BY create_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectDetailsByIds" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        SELECT id, note_id, user_id, content_uuid, is_content_empty, image_url,
+               level, parent_id, reply_comment_id, reply_user_id, create_time
+        FROM t_comment
+        WHERE id IN
+        <foreach collection="commentIds" open="(" separator="," close=")" item="commentId">
+            #{commentId}
+        </foreach>
+    </select>
+
+    <select id="selectCountsByIds" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        SELECT id, like_total, reply_total, first_reply_comment_id
+        FROM t_comment
+        WHERE id IN
+        <foreach collection="commentIds" open="(" separator="," close=")" item="commentId">
+            #{commentId}
+        </foreach>
+    </select>
+
+    <update id="updateLikeTotal">
+        UPDATE t_comment
+        SET like_total = GREATEST(0, COALESCE(like_total, 0) + #{delta}),
+            heat = CASE WHEN level = 1
+                THEN ROUND(GREATEST(0, COALESCE(like_total, 0) + #{delta}) * 0.70
+                    + COALESCE(reply_total, 0) * 0.30, 2)
+                ELSE heat END,
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{commentId}
+    </update>
+
+    <select id="selectInteractionStatsByIds" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        SELECT id, note_id, level, like_total, reply_total, first_reply_comment_id, heat, is_top
+        FROM t_comment
+        WHERE id IN
+        <foreach collection="commentIds" open="(" separator="," close=")" item="commentId">
+            #{commentId}
+        </foreach>
+    </select>
+
+    <select id="selectByIdForUpdate" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        SELECT * FROM t_comment WHERE id = #{commentId} FOR UPDATE
+    </select>
+
+    <select id="selectRootDeleteTargets" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        SELECT *
+        FROM t_comment
+        WHERE id = #{commentId}
+           OR (parent_id = #{commentId} AND level = 2)
+        ORDER BY level, create_time, id
+        FOR UPDATE
+    </select>
+
+    <select id="selectReplyBranchDeleteTargets" resultType="com.hanserwei.comment.domain.dataobject.CommentDO">
+        WITH RECURSIVE target_ids AS (
+            SELECT id FROM t_comment WHERE id = #{commentId}
+            UNION ALL
+            SELECT child.id
+            FROM t_comment child
+            JOIN target_ids parent ON child.reply_comment_id = parent.id
+            WHERE child.level = 2
+        )
+        SELECT comment.*
+        FROM t_comment comment
+        JOIN target_ids target ON target.id = comment.id
+        ORDER BY comment.create_time, comment.id
+        FOR UPDATE OF comment
+    </select>
+
+    <delete id="deleteByIdsPhysically">
+        DELETE FROM t_comment WHERE id IN
+        <foreach collection="commentIds" open="(" separator="," close=")" item="commentId">
+            #{commentId}
+        </foreach>
+    </delete>
+
+    <select id="lockReplyComments" resultMap="ReplyAssembleResultMap">
+        SELECT id, note_id, level, parent_id, user_id
+        FROM t_comment
+        WHERE id IN
+        <foreach collection="commentIds" open="(" separator="," close=")" item="commentId">
+            #{commentId}
+        </foreach>
+        FOR KEY SHARE
+    </select>
 
 </mapper>

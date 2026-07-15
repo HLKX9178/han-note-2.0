@@ -10,6 +10,8 @@ import com.hanserwei.framework.common.exception.BizException;
 import com.hanserwei.framework.common.response.Response;
 import com.hanserwei.framework.common.util.DateUtils;
 import com.hanserwei.framework.common.util.JsonUtils;
+import com.hanserwei.note.api.dto.req.FindPublishedNoteReqDTO;
+import com.hanserwei.note.api.dto.resp.FindPublishedNoteRspDTO;
 import com.hanserwei.note.constant.MQConstants;
 import com.hanserwei.note.constant.RedisKeyConstants;
 import com.hanserwei.note.domain.dataobject.NoteCollectionDO;
@@ -135,6 +137,11 @@ public class NoteServiceImpl implements NoteService {
         script.setScriptSource(new ResourceScriptSource(new ClassPathResource(path)));
         script.setResultType(Long.class);
         return script;
+    }
+
+    @Override
+    public Response<FindPublishedNoteRspDTO> findPublishedById(FindPublishedNoteReqDTO request) {
+        return Response.success(noteDOMapper.selectPublishedById(request.getNoteId()));
     }
 
     @Override

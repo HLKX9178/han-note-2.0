@@ -30,4 +30,8 @@
         DROP TABLE IF EXISTS t_data_align_note_publish_count_temp_${tableNameSuffix}
     </update>
 
+    <update id="dropDataAlignNoteCommentCountTempTable">
+        DROP TABLE IF EXISTS t_data_align_note_comment_count_temp_${tableNameSuffix}
+    </update>
+
 </mapper>

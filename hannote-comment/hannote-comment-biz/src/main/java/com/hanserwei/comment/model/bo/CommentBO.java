@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -30,6 +31,8 @@ public class CommentBO {
     private Integer level;
     private Long replyTotal;
     private Long likeTotal;
+    private Long firstReplyCommentId;
+    private BigDecimal heat;
     private Long parentId;
     private Long replyCommentId;
     private Long replyUserId;

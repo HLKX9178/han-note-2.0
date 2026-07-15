@@ -11,4 +11,11 @@
           AND status = 1
     </select>
 
+    <select id="selectPublishedById" resultType="com.hanserwei.note.api.dto.resp.FindPublishedNoteRspDTO">
+        SELECT id AS note_id, creator_id
+        FROM t_note
+        WHERE id = #{noteId}
+          AND status = 1
+    </select>
+
 </mapper>

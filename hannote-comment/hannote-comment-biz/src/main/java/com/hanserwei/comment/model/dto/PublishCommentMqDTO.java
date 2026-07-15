@@ -23,6 +23,8 @@ public class PublishCommentMqDTO {
     /** 评论 ID（发送前由 CoSId 预生成，用于幂等） */
     private Long commentId;
     private Long noteId;
+    /** 评论正文 UUID；发 MQ 前生成，保证消费重试写 ScyllaDB 使用同一主键 */
+    private String contentUuid;
     private String content;
     private String imageUrl;
     private Long replyCommentId;

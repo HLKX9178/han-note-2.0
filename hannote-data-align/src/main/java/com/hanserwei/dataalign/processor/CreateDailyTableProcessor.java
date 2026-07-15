@@ -17,7 +17,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * PowerJob 单机任务：提前创建明日的日增量临时表.
  *
- * <p>每日 23:00 触发，为每个分片创建 7 张明日临时表（{@code CREATE TABLE IF NOT EXISTS}），
+ * <p>每日 23:00 触发，为每个分片创建 8 张明日临时表（{@code CREATE TABLE IF NOT EXISTS}），
  * 承接次日发生变更、需重新对齐的 userId/noteId。
  *
  * <p>控制台配置：处理器类型=内置Java，执行类型=单机，CRON={@code 0 0 23 * * ?}。
@@ -55,7 +55,8 @@ public class CreateDailyTableProcessor implements BasicProcessor {
                 createTableMapper.createDataAlignUserLikeCountTempTable(suffix);
                 createTableMapper.createDataAlignNoteLikeCountTempTable(suffix);
                 createTableMapper.createDataAlignNotePublishCountTempTable(suffix);
-                omsLogger.info("## 已创建分片 {} 的 7 张日增量表, suffix={}", hashKey, suffix);
+                createTableMapper.createDataAlignNoteCommentCountTempTable(suffix);
+                omsLogger.info("## 已创建分片 {} 的 8 张日增量表, suffix={}", hashKey, suffix);
             } catch (Exception e) {
                 omsLogger.error("## 创建分片 {} 日增量表失败, suffix={}", hashKey, suffix, e);
                 log.error("## 创建分片 {} 日增量表失败, suffix={}", hashKey, suffix, e);

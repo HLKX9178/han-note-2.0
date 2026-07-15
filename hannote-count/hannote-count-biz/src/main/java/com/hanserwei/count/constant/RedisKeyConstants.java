@@ -43,6 +43,9 @@ public final class RedisKeyConstants {
     /** Hash Field：收藏总数（笔记维度=被收藏数，用户维度=获藏数） */
     public static final String FIELD_COLLECT_TOTAL = "collectTotal";
 
+    /** Hash Field：评论总数（笔记维度） */
+    public static final String FIELD_COMMENT_TOTAL = "commentTotal";
+
     /** Hash Field：发布笔记总数（用户维度） */
     public static final String FIELD_NOTE_TOTAL = "noteTotal";
 
@@ -66,4 +69,3 @@ public final class RedisKeyConstants {
         return COUNT_NOTE_KEY_PREFIX + noteId;
     }
 }
-

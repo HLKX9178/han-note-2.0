@@ -44,6 +44,9 @@ public final class RedisKeyConstants {
     /** 布隆：日增量-用户粉丝数变更（目标用户 ID 维度）前缀 */
     private static final String BLOOM_USER_FANS_PREFIX = "hannote:dataAlign:user:fans:";
 
+    /** 布隆：日增量-笔记评论总数变更（笔记 ID 维度）前缀 */
+    private static final String BLOOM_NOTE_COMMENT_NOTE_ID_PREFIX = "hannote:dataAlign:note:comment:noteIds:";
+
     public static String buildBloomNoteLikeNoteIdKey(String date) {
         return BLOOM_NOTE_LIKE_NOTE_ID_PREFIX + date;
     }
@@ -72,6 +75,10 @@ public final class RedisKeyConstants {
         return BLOOM_USER_FANS_PREFIX + date;
     }
 
+    public static String buildBloomNoteCommentNoteIdKey(String date) {
+        return BLOOM_NOTE_COMMENT_NOTE_ID_PREFIX + date;
+    }
+
     // ============ 二、计数缓存 Key/Field 镜像（须与 hannote-count RedisKeyConstants 一致） ============
 
     /** 计数服务 Redis Key 统一前缀（镜像 count 服务 {@code COUNT_KEY_PREFIX}） */
@@ -97,6 +104,9 @@ public final class RedisKeyConstants {
 
     /** Hash Field：发布笔记总数（用户维度） */
     public static final String FIELD_NOTE_TOTAL = "noteTotal";
+
+    /** Hash Field：笔记评论总数 */
+    public static final String FIELD_COMMENT_TOTAL = "commentTotal";
 
     /**
      * 构建用户维度计数 Key（镜像 count 服务）。

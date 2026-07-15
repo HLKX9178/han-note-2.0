@@ -6,6 +6,7 @@ import com.hanserwei.comment.model.dto.PublishCommentMqDTO;
 import com.hanserwei.comment.model.vo.PublishCommentReqVO;
 import com.hanserwei.comment.retry.SendMqRetryHelper;
 import com.hanserwei.comment.rpc.DistributedIdRpcService;
+import com.hanserwei.comment.rpc.NoteRpcService;
 import com.hanserwei.comment.service.CommentService;
 import com.hanserwei.framework.biz.context.holder.LoginUserContextHolder;
 import com.hanserwei.framework.common.exception.BizException;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 import static com.hanserwei.comment.enums.ResponseCodeEnum.SYSTEM_ERROR;
 
@@ -34,6 +36,7 @@ import static com.hanserwei.comment.enums.ResponseCodeEnum.SYSTEM_ERROR;
 public class CommentServiceImpl implements CommentService {
 
     private final DistributedIdRpcService distributedIdRpcService;
+    private final NoteRpcService noteRpcService;
     private final SendMqRetryHelper sendMqRetryHelper;
 
     @Override
@@ -48,6 +51,9 @@ public class CommentServiceImpl implements CommentService {
         // 发布者 ID（网关透传 userId）
         Long creatorId = LoginUserContextHolder.getUserId();
 
+        // 发 MQ 前校验笔记存在，避免为已删除/不存在笔记制造异步评论数据。
+        noteRpcService.requirePublished(publishCommentReqVO.getNoteId());
+
         // 预生成评论 ID（幂等基准）
         Long commentId = distributedIdRpcService.generateCommentId();
         if (Objects.isNull(commentId)) {
@@ -58,6 +64,7 @@ public class CommentServiceImpl implements CommentService {
         PublishCommentMqDTO publishCommentMqDTO = PublishCommentMqDTO.builder()
                 .commentId(commentId)
                 .noteId(publishCommentReqVO.getNoteId())
+                .contentUuid(StringUtils.isBlank(content) ? "" : UUID.randomUUID().toString())
                 .content(content)
                 .imageUrl(imageUrl)
                 .replyCommentId(publishCommentReqVO.getReplyCommentId())

@@ -7,7 +7,11 @@ import com.hanserwei.comment.domain.dataobject.CommentDO;
 import com.hanserwei.comment.domain.mapper.CommentDOMapper;
 import com.hanserwei.comment.model.bo.CommentBO;
 import com.hanserwei.comment.model.dto.PublishCommentMqDTO;
+import com.hanserwei.comment.model.dto.CommentCountChangedMqDTO;
 import com.hanserwei.comment.rpc.KeyValueRpcService;
+import com.hanserwei.comment.retry.SendMqRetryHelper;
+import com.hanserwei.comment.enums.CommentLevelEnum;
+import com.hanserwei.comment.cache.CommentCacheManager;
 import com.google.common.util.concurrent.RateLimiter;
 import com.hanserwei.framework.common.util.JsonUtils;
 import jakarta.annotation.PostConstruct;
@@ -21,12 +25,19 @@ import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 评论批量写库消费者.
@@ -51,6 +62,9 @@ public class Comment2DBConsumer {
     private final CommentDOMapper commentDOMapper;
     private final CommentAssembler commentAssembler;
     private final KeyValueRpcService keyValueRpcService;
+    private final TransactionTemplate transactionTemplate;
+    private final SendMqRetryHelper sendMqRetryHelper;
+    private final CommentCacheManager commentCacheManager;
 
     private DefaultMQPushConsumer consumer;
 
@@ -60,11 +74,17 @@ public class Comment2DBConsumer {
     public Comment2DBConsumer(@Value("${rocketmq.name-server}") String namesrvAddr,
                               CommentDOMapper commentDOMapper,
                               CommentAssembler commentAssembler,
-                              KeyValueRpcService keyValueRpcService) {
+                              KeyValueRpcService keyValueRpcService,
+                              TransactionTemplate transactionTemplate,
+                              SendMqRetryHelper sendMqRetryHelper,
+                              CommentCacheManager commentCacheManager) {
         this.namesrvAddr = namesrvAddr;
         this.commentDOMapper = commentDOMapper;
         this.commentAssembler = commentAssembler;
         this.keyValueRpcService = keyValueRpcService;
+        this.transactionTemplate = transactionTemplate;
+        this.sendMqRetryHelper = sendMqRetryHelper;
+        this.commentCacheManager = commentCacheManager;
     }
 
     @PostConstruct
@@ -82,7 +102,7 @@ public class Comment2DBConsumer {
             log.info("==> 评论批量写库，本批次消息大小: {}", msgs.size());
             try {
                 // 令牌桶限流
-                rateLimiter.acquire();
+                rateLimiter.acquire(msgs.size());
 
                 // 消息体 -> DTO 集合
                 List<PublishCommentMqDTO> dtos = msgs.stream()
@@ -94,14 +114,19 @@ public class Comment2DBConsumer {
                         .map(PublishCommentMqDTO::getReplyCommentId)
                         .filter(Objects::nonNull)
                         .filter(id -> id > 0)
+                        .distinct()
                         .toList();
                 Map<Long, CommentDO> replyCommentMap = Map.of();
                 if (CollUtil.isNotEmpty(replyCommentIds)) {
                     List<CommentDO> replyDOs = commentDOMapper.selectByCommentIds(replyCommentIds);
                     if (CollUtil.isNotEmpty(replyDOs)) {
-                        replyCommentMap = replyDOs.stream().collect(Collectors.toMap(CommentDO::getId, d -> d));
+                        replyCommentMap = new HashMap<>(replyDOs.stream()
+                                .collect(Collectors.toMap(CommentDO::getId, d -> d)));
                     }
                 }
+                // 同一批次可能同时包含“父评论消息 + 回复消息”。把批内尚未落库的父评论递归解析为
+                // 最小投影，避免整批因查库暂时不存在而永久重试、父评论也无法先落库。
+                replyCommentMap = resolveBatchReplyComments(dtos, replyCommentMap);
 
                 // 拼装 BO
                 List<CommentBO> commentBOS = commentAssembler.assemble(dtos, replyCommentMap);
@@ -119,8 +144,49 @@ public class Comment2DBConsumer {
                     keyValueRpcService.batchSaveCommentContent(contentNotEmpty);
                 }
 
-                // PG 批量写。RPC 已移出事务，避免 ScyllaDB 网络 IO 长时间占用事务连接。
-                commentDOMapper.batchInsert(commentBOS);
+                // PG 批量写并返回真实新增行。只有真实新增行才能触发回复统计与跨服务计数副作用。
+                List<CommentDO> inserted = transactionTemplate.execute(status -> {
+                    List<Long> repliedIds = commentBOS.stream()
+                            .map(CommentBO::getReplyCommentId)
+                            .filter(id -> id != null && id > 0)
+                            .distinct()
+                            .toList();
+                    Set<Long> batchCommentIds = commentBOS.stream().map(CommentBO::getId).collect(Collectors.toSet());
+                    List<Long> persistedReplyIds = repliedIds.stream()
+                            .filter(id -> !batchCommentIds.contains(id))
+                            .toList();
+                    if (CollUtil.isNotEmpty(persistedReplyIds)
+                            && commentDOMapper.lockReplyComments(persistedReplyIds).size() != persistedReplyIds.size()) {
+                        throw new IllegalStateException("被回复评论已删除，拒绝写入孤儿回复");
+                    }
+                    List<CommentDO> actualInserted = commentDOMapper.batchInsertReturning(commentBOS);
+                    if (CollUtil.isEmpty(actualInserted)) {
+                        return Collections.emptyList();
+                    }
+                    List<Long> rootCommentIds = actualInserted.stream()
+                            .filter(item -> Objects.equals(item.getLevel(), CommentLevelEnum.TWO.getCode()))
+                            .map(CommentDO::getParentId)
+                            .filter(Objects::nonNull)
+                            .distinct()
+                            .toList();
+                    if (CollUtil.isNotEmpty(rootCommentIds)) {
+                        commentDOMapper.recomputeRootStatistics(rootCommentIds);
+                    }
+                    return new ArrayList<>(actualInserted);
+                });
+
+                if (CollUtil.isNotEmpty(inserted)) {
+                    commentCacheManager.afterCommentsInserted(inserted);
+                    Map<Long, Long> countByNoteId = inserted.stream()
+                            .collect(Collectors.groupingBy(CommentDO::getNoteId, Collectors.counting()));
+                    countByNoteId.forEach((noteId, count) -> sendMqRetryHelper.asyncSend(
+                            MQConstants.TOPIC_COMMENT_COUNT_CHANGED,
+                            JsonUtils.toJsonString(CommentCountChangedMqDTO.builder()
+                                    .eventId(UUID.randomUUID().toString())
+                                    .noteId(noteId)
+                                    .delta(Math.toIntExact(count))
+                                    .build())));
+                }
 
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             } catch (Exception e) {
@@ -142,5 +208,54 @@ public class Comment2DBConsumer {
                 log.error("==> 评论消费者关闭异常: ", e);
             }
         }
+    }
+
+    private Map<Long, CommentDO> resolveBatchReplyComments(List<PublishCommentMqDTO> dtos,
+                                                            Map<Long, CommentDO> persisted) {
+        Map<Long, CommentDO> resolved = new HashMap<>(persisted);
+        Map<Long, PublishCommentMqDTO> batchById = dtos.stream()
+                .collect(Collectors.toMap(PublishCommentMqDTO::getCommentId, item -> item, (left, right) -> left));
+        dtos.stream().map(PublishCommentMqDTO::getReplyCommentId)
+                .filter(id -> id != null && id > 0)
+                .forEach(id -> resolveBatchComment(id, batchById, resolved, new HashSet<>()));
+        return resolved;
+    }
+
+    private CommentDO resolveBatchComment(Long commentId,
+                                           Map<Long, PublishCommentMqDTO> batchById,
+                                           Map<Long, CommentDO> resolved,
+                                           Set<Long> visiting) {
+        CommentDO existing = resolved.get(commentId);
+        if (existing != null) {
+            return existing;
+        }
+        PublishCommentMqDTO dto = batchById.get(commentId);
+        if (dto == null) {
+            return null;
+        }
+        if (!visiting.add(commentId)) {
+            throw new IllegalStateException("批内评论回复关系存在环, commentId=" + commentId);
+        }
+        Long repliedId = dto.getReplyCommentId();
+        CommentDO current;
+        if (repliedId == null || repliedId <= 0) {
+            current = CommentDO.builder()
+                    .id(dto.getCommentId()).noteId(dto.getNoteId()).userId(dto.getCreatorId())
+                    .level(CommentLevelEnum.ONE.getCode()).parentId(dto.getNoteId()).build();
+        } else {
+            CommentDO replied = resolveBatchComment(repliedId, batchById, resolved, visiting);
+            if (replied == null) {
+                return null;
+            }
+            current = CommentDO.builder()
+                    .id(dto.getCommentId()).noteId(dto.getNoteId()).userId(dto.getCreatorId())
+                    .level(CommentLevelEnum.TWO.getCode())
+                    .parentId(Objects.equals(replied.getLevel(), CommentLevelEnum.TWO.getCode())
+                            ? replied.getParentId() : replied.getId())
+                    .build();
+        }
+        visiting.remove(commentId);
+        resolved.put(commentId, current);
+        return current;
     }
 }

@@ -51,4 +51,11 @@
         )
     </update>
 
+    <update id="createDataAlignNoteCommentCountTempTable">
+        CREATE TABLE IF NOT EXISTS t_data_align_note_comment_count_temp_${tableNameSuffix} (
+            id      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+            note_id BIGINT NOT NULL UNIQUE
+        )
+    </update>
+
 </mapper>

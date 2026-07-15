@@ -52,7 +52,31 @@ public class SendMqRetryHelper {
             @Override
             public void onException(Throwable throwable) {
                 log.error("==> 【评论发布】MQ 发送异常, 进入重试: ", throwable);
-                handleRetry(topic, message);
+                handleRetry(topic, message, false, "");
+            }
+        });
+    }
+
+    /**
+     * 异步发送顺序 MQ，失败补偿时保留原 hashKey.
+     *
+     * @param destination Topic:Tag
+     * @param body 消息体 JSON
+     * @param hashKey 顺序分片键
+     */
+    public void asyncSendOrderly(String destination, String body, String hashKey) {
+        log.info("==> 开始异步发送顺序 MQ, destination: {}, hashKey: {}", destination, hashKey);
+        Message<String> message = MessageBuilder.withPayload(body).build();
+        rocketMQTemplate.asyncSendOrderly(destination, message, hashKey, new SendCallback() {
+            @Override
+            public void onSuccess(SendResult sendResult) {
+                log.info("==> 顺序 MQ 发送成功, destination: {}, SendResult: {}", destination, sendResult);
+            }
+
+            @Override
+            public void onException(Throwable throwable) {
+                log.error("==> 顺序 MQ 发送异常, destination: {}, 进入重试", destination, throwable);
+                handleRetry(destination, message, true, hashKey);
             }
         });
     }
@@ -60,16 +84,20 @@ public class SendMqRetryHelper {
     /**
      * 失败后异步指数退避重试.
      */
-    private void handleRetry(String topic, Message<String> message) {
+    private void handleRetry(String topic, Message<String> message, boolean orderly, String hashKey) {
         taskExecutor.submit(() -> {
             try {
                 retryTemplate.execute((RetryCallback<Void, RuntimeException>) context -> {
                     log.info("==> 重试发送 MQ, 第 {} 次, 时间: {}", context.getRetryCount() + 1, LocalDateTime.now());
-                    rocketMQTemplate.syncSend(topic, message);
+                    if (orderly) {
+                        rocketMQTemplate.syncSendOrderly(topic, message, hashKey);
+                    } else {
+                        rocketMQTemplate.syncSend(topic, message);
+                    }
                     return null;
                 });
             } catch (Exception e) {
-                fallback(e, topic, message.getPayload());
+                fallback(e, topic, message.getPayload(), orderly, hashKey);
             }
         });
     }
@@ -83,13 +111,15 @@ public class SendMqRetryHelper {
      * 异常外溢将被静默丢弃，消息彻底消失且无迹可循。故失败时以 error 日志打印完整消息体，
      * 保证至少可从日志人工补偿。
      */
-    private void fallback(Exception e, String topic, String bodyJson) {
+    private void fallback(Exception e, String topic, String bodyJson, boolean orderly, String hashKey) {
         log.error("==> 多次发送失败, 进入兜底方案（落库待补偿重发）, Topic: {}, body: {}", topic, bodyJson, e);
         LocalDateTime now = LocalDateTime.now();
         try {
             mqSendFailDOMapper.insert(MqSendFailDO.builder()
                     .topic(topic)
                     .body(bodyJson)
+                    .orderly(orderly)
+                    .hashKey(hashKey == null ? "" : hashKey)
                     .retryCount(0)
                     .nextRetryTime(now)
                     .status(0)

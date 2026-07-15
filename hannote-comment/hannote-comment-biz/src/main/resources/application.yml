@@ -29,3 +29,10 @@ retry:
   max-attempts: 3      # 最大重试次数
   init-interval: 1000  # 初始延迟（ms）
   multiplier: 2        # 每次间隔乘数
+
+comment:
+  mq-consumer:
+    like-unlike:
+      rate-limit: 1000
+      batch-size: 30
+      max-reconsume-times: 3

@@ -1,6 +1,6 @@
 ### hannote 计数服务 关注数/粉丝数写入链路 接口测试（IntelliJ HTTP Client）
 #
-# 重要：计数服务(8087)本身没有 HTTP 接口，它是纯 RocketMQ 消费者。
+# 重要：计数服务(8087)仅提供内网笔记计数查询接口；写入链路仍由 RocketMQ 消费驱动。
 #       这条链路由「用户关系服务的关注/取关 HTTP 接口」触发，异步经 MQ 落到 Redis + PostgreSQL。
 #       因此本文件通过调用 relation 的 /follow、/unfollow 触发链路，
 #       再用文件内嵌的 redis-cli / psql 命令（注释）核对异步结果。
@@ -156,3 +156,24 @@ Content-Type: application/json
 #   5) psql "$PG_URL" -c "SELECT fans_total FROM t_user_count WHERE user_id=27;"   # 期望 3200
 #
 # 临时单测验证完请删除、不提交（属压测脚手架，非产品代码）。
+
+
+###############################################################################
+# 用例 6：内网查询笔记维度计数（Redis Hash → PostgreSQL → 空计数）
+###############################################################################
+
+### 6. 查询笔记点赞/收藏/评论总数
+POST {{countHost}}/count/note/findById
+Content-Type: application/json
+
+{
+  "noteId": {{noteId}}
+}
+
+> {%
+    client.test("查询笔记计数成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, JSON.stringify(response.body));
+        client.assert(response.body.data.commentTotal >= 0, "commentTotal 不应为负数");
+    });
+%}

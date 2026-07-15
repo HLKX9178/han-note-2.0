@@ -32,4 +32,5 @@ public class ThreadPoolConfig {
         executor.setConcurrencyLimit(CONCURRENCY_LIMIT);
         return executor;
     }
+
 }
