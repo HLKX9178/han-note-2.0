@@ -19,7 +19,8 @@ import java.util.List;
  *
  * <p>捞取到期待重发记录（{@code status=0} 且 {@code next_retry_time <= now()}），逐条同步重发：
  * 成功则物理删除该行；失败则 {@code retry_count+1} 并按指数退避推后 {@code next_retry_time}，
- * 超过 {@link #MAX_RETRY} 次仅告警（保留人工介入，不再无限重发）。
+ * 达到 {@link #MAX_RETRY} 次仍失败则置 {@code status=2}（已放弃）并告警，扫表不再捞出，
+ * 保留记录待人工介入。
  *
  * <p>控制台配置：处理器类型=内置Java，执行类型=单机，CRON 建议每分钟一次。
  *
@@ -35,8 +36,11 @@ public class MqResendProcessor implements BasicProcessor {
     /** 单次扫表最多处理条数 */
     static final int BATCH_LIMIT = 200;
 
-    /** 最大补偿重发次数，超过仅告警 */
+    /** 最大补偿重发次数，超过则置为 {@link #STATUS_ABANDONED} 不再重发 */
     static final int MAX_RETRY = 10;
+
+    /** 状态：已放弃（达重发上限仍失败，等人工介入），扫表不再捞出 */
+    static final int STATUS_ABANDONED = 2;
 
     /** 退避封顶（分钟） */
     private static final long BACKOFF_CAP_MINUTES = 60L;
@@ -77,13 +81,15 @@ public class MqResendProcessor implements BasicProcessor {
                 row.setRetryCount(newCount);
                 row.setNextRetryTime(LocalDateTime.now().plusMinutes(backoffMinutes(newCount)));
                 row.setUpdateTime(LocalDateTime.now());
-                mqSendFailDOMapper.updateById(row);
                 if (newCount >= MAX_RETRY) {
-                    log.warn("==> MQ 兜底重发已达上限 {} 次仍失败，保留待人工介入, id={}, topic={}",
+                    // 置为「已放弃」，使 selectPending（只捞 status=0）不再重复捞出，避免无限重发
+                    row.setStatus(STATUS_ABANDONED);
+                    log.warn("==> MQ 兜底重发已达上限 {} 次仍失败，置为已放弃待人工介入, id={}, topic={}",
                             MAX_RETRY, row.getId(), row.getTopic(), e);
                 } else {
                     log.error("==> MQ 兜底重发失败, id={}, topic={}, 第 {} 次", row.getId(), row.getTopic(), newCount, e);
                 }
+                mqSendFailDOMapper.updateById(row);
                 failed++;
             }
         }

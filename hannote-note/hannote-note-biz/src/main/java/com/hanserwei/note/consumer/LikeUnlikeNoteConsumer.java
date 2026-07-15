@@ -10,7 +10,6 @@ import com.hanserwei.note.domain.mapper.NoteLikeDOMapper;
 import com.hanserwei.note.model.dto.LikeUnlikeNoteMqDTO;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeOrderlyStatus;
@@ -29,8 +28,8 @@ import java.util.Objects;
  * 笔记点赞 / 取消点赞 MQ 消费者（rocketmq-client 原生批量顺序消费）.
  *
  * <p>批量顺序消费 {@link MQConstants#TOPIC_LIKE_UNLIKE}：令牌桶削峰后，对一批消息按
- * {@code (userId, noteId)} 做奇偶抵消合并（{@link InteractionMergeSupport}），将合并后的
- * 最终操作批量 upsert 到 {@code t_note_like}（status 位翻转，1 点赞 / 0 取消）。
+ * {@code (userId, noteId)} 合并为最终状态（{@link InteractionMergeSupport}，取批次内最后一条），
+ * 将合并后的最终操作批量 upsert 到 {@code t_note_like}（status 位翻转，1 点赞 / 0 取消）。
  *
  * <p>顺序性由生产端按 {@code userId} hashKey 有序发送保证（同一用户操作落同一队列）。
  *
@@ -42,18 +41,21 @@ import java.util.Objects;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class LikeUnlikeNoteConsumer {
 
-    @Value("${rocketmq.name-server}")
-    private String namesrvAddr;
-
+    private final String namesrvAddr;
     private final NoteLikeDOMapper noteLikeDOMapper;
 
     private DefaultMQPushConsumer consumer;
 
     /** 令牌桶削峰：每秒 5000 个令牌，以数据库可承受速率消费 */
     private final RateLimiter rateLimiter = RateLimiter.create(5000);
+
+    public LikeUnlikeNoteConsumer(@Value("${rocketmq.name-server}") String namesrvAddr,
+                                  NoteLikeDOMapper noteLikeDOMapper) {
+        this.namesrvAddr = namesrvAddr;
+        this.noteLikeDOMapper = noteLikeDOMapper;
+    }
 
     @PostConstruct
     public void init() throws MQClientException {
@@ -69,8 +71,8 @@ public class LikeUnlikeNoteConsumer {
         consumer.registerMessageListener((MessageListenerOrderly) (msgs, context) -> {
             log.info("==> 【笔记点赞/取消点赞】本批次消息大小: {}", msgs.size());
             try {
-                // 流量削峰
-                rateLimiter.acquire();
+                // 流量削峰：按条消耗令牌（批量消费下按批消耗会使实际吞吐放大 batchSize 倍）
+                rateLimiter.acquire(msgs.size());
 
                 // 消息体 -> DTO 列表
                 List<LikeUnlikeNoteMqDTO> dtos = msgs.stream()
@@ -78,7 +80,7 @@ public class LikeUnlikeNoteConsumer {
                         .filter(Objects::nonNull)
                         .toList();
 
-                // 内存合并：同 (userId, noteId) 偶数次抵消、奇数次取最后一次
+                // 内存合并：同 (userId, noteId) 取批次内最后一条作为最终状态
                 List<LikeUnlikeNoteMqDTO> merged = InteractionMergeSupport.mergeByLastOp(
                         dtos, LikeUnlikeNoteMqDTO::getUserId, LikeUnlikeNoteMqDTO::getNoteId);
 

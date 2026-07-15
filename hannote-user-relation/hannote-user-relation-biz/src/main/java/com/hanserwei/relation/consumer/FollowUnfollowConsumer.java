@@ -17,7 +17,6 @@ import com.hanserwei.relation.model.dto.FollowUserMqDTO;
 import com.hanserwei.relation.model.dto.UnfollowUserMqDTO;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeOrderlyStatus;
@@ -26,6 +25,7 @@ import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.remoting.protocol.heartbeat.MessageModel;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -44,7 +44,7 @@ import java.util.Objects;
  *
  * <p>批量顺序消费 {@link MQConstants#TOPIC_FOLLOW_OR_UNFOLLOW}：令牌桶削峰后，按 Tag
  * （{@link MQConstants#TAG_FOLLOW}/{@link MQConstants#TAG_UNFOLLOW}）解析为统一 {@link FollowOp}，
- * 对一批消息按 {@code (userId, targetUserId)} 做奇偶抵消合并（{@link InteractionMergeSupport}），
+ * 对一批消息按 {@code (userId, targetUserId)} 合并为最终状态（{@link InteractionMergeSupport}，取批次内最后一条），
  * 再把最终操作拆成关注组 / 取关组分别批量落库：
  * <ul>
  *   <li>关注组：{@code t_following}、{@code t_fans} 各批量 insert（{@code ON CONFLICT DO NOTHING} 幂等）；</li>
@@ -55,9 +55,10 @@ import java.util.Objects;
  * <p>顺序性由生产端按 {@code userId} hashKey 有序发送保证。计数已改由计数服务并行直消费源 Topic，
  * 本消费者不再转发计数 MQ。
  *
- * <p><b>与原单条版的行为差异（供 CR 关注）</b>：原按单条区分「瞬时故障重试 / 毒丸吞掉」；批量版对整批
- * 事务失败统一返回 {@code SUSPEND_CURRENT_QUEUE_A_MOMENT} 挂起重试，超过 {@code maxReconsumeTimes}
- * 后由 RocketMQ 转入死信队列。
+ * <p><b>与原单条版的行为差异</b>：原按单条区分「瞬时故障重试 / 毒丸吞掉」；批量版对整批事务失败统一返回
+ * {@code SUSPEND_CURRENT_QUEUE_A_MOMENT} 挂起重试，超过 {@code maxReconsumeTimes} 后由 RocketMQ
+ * 转入死信队列。此处刻意不再区分：批量下无法定位是哪条消息致错，且死信队列保留了原消息可供排查，
+ * 优于原先「确定性异常直接吞掉」的静默丢数据。
  *
  * @author hanserwei
  * @date 2026/07/14
@@ -65,12 +66,9 @@ import java.util.Objects;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class FollowUnfollowConsumer {
 
-    @org.springframework.beans.factory.annotation.Value("${rocketmq.name-server}")
-    private String namesrvAddr;
-
+    private final String namesrvAddr;
     private final FollowingDOMapper followingDOMapper;
     private final FansDOMapper fansDOMapper;
     private final TransactionTemplate transactionTemplate;
@@ -79,6 +77,22 @@ public class FollowUnfollowConsumer {
     private final RateLimiter followUnfollowRateLimiter;
 
     private DefaultMQPushConsumer consumer;
+
+    public FollowUnfollowConsumer(@Value("${rocketmq.name-server}") String namesrvAddr,
+                                  FollowingDOMapper followingDOMapper,
+                                  FansDOMapper fansDOMapper,
+                                  TransactionTemplate transactionTemplate,
+                                  StringRedisTemplate stringRedisTemplate,
+                                  RelationProperties relationProperties,
+                                  RateLimiter followUnfollowRateLimiter) {
+        this.namesrvAddr = namesrvAddr;
+        this.followingDOMapper = followingDOMapper;
+        this.fansDOMapper = fansDOMapper;
+        this.transactionTemplate = transactionTemplate;
+        this.stringRedisTemplate = stringRedisTemplate;
+        this.relationProperties = relationProperties;
+        this.followUnfollowRateLimiter = followUnfollowRateLimiter;
+    }
 
     /** 更新粉丝 ZSET 的 Lua 脚本 */
     private static final DefaultRedisScript<Long> FANS_ZSET_SCRIPT = buildFansZsetScript();
@@ -109,7 +123,8 @@ public class FollowUnfollowConsumer {
             log.info("==> 【关注/取关】本批次消息大小: {}", msgs.size());
             try {
                 // 流量削峰（动态限流 Bean，可随扩缩容变速）
-                followUnfollowRateLimiter.acquire();
+                // 按条消耗令牌：批量消费下按批消耗会使实际吞吐放大 batchSize 倍
+                followUnfollowRateLimiter.acquire(msgs.size());
 
                 // 消息体按 Tag 归一化为 FollowOp
                 List<FollowOp> ops = msgs.stream()
@@ -117,7 +132,7 @@ public class FollowUnfollowConsumer {
                         .filter(Objects::nonNull)
                         .toList();
 
-                // 内存合并：同 (userId, targetUserId) 偶数次抵消、奇数次取最后一次
+                // 内存合并：同 (userId, targetUserId) 取批次内最后一条作为最终状态
                 List<FollowOp> merged = InteractionMergeSupport.mergeByLastOp(
                         ops, FollowOp::userId, FollowOp::targetUserId);
                 if (CollUtil.isEmpty(merged)) {

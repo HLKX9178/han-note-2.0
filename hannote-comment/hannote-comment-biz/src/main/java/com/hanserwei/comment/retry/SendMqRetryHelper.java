@@ -78,18 +78,26 @@ public class SendMqRetryHelper {
      * 兜底：多次重试仍失败，将消息落库 {@code t_mq_send_fail}.
      *
      * <p>由 PowerJob 定时任务（{@code MqResendProcessor}）扫表重发，成功后物理删除，做到 MQ 最终发出。
+     *
+     * <p>落库本身也可能失败（如 MQ 与 DB 同时故障）。此处必须自行捕获：调用方在虚拟线程中执行，
+     * 异常外溢将被静默丢弃，消息彻底消失且无迹可循。故失败时以 error 日志打印完整消息体，
+     * 保证至少可从日志人工补偿。
      */
     private void fallback(Exception e, String topic, String bodyJson) {
         log.error("==> 多次发送失败, 进入兜底方案（落库待补偿重发）, Topic: {}, body: {}", topic, bodyJson, e);
         LocalDateTime now = LocalDateTime.now();
-        mqSendFailDOMapper.insert(MqSendFailDO.builder()
-                .topic(topic)
-                .body(bodyJson)
-                .retryCount(0)
-                .nextRetryTime(now)
-                .status(0)
-                .createTime(now)
-                .updateTime(now)
-                .build());
+        try {
+            mqSendFailDOMapper.insert(MqSendFailDO.builder()
+                    .topic(topic)
+                    .body(bodyJson)
+                    .retryCount(0)
+                    .nextRetryTime(now)
+                    .status(0)
+                    .createTime(now)
+                    .updateTime(now)
+                    .build());
+        } catch (Exception dbEx) {
+            log.error("==> 兜底落库失败，消息仅存于本日志，需人工补偿! Topic: {}, body: {}", topic, bodyJson, dbEx);
+        }
     }
 }

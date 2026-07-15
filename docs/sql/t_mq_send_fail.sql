@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS t_mq_send_fail
     body            TEXT         NOT NULL,
     retry_count     INT          NOT NULL DEFAULT 0,
     next_retry_time TIMESTAMP    NOT NULL DEFAULT now(),
-    status          SMALLINT     NOT NULL DEFAULT 0, -- 0 待重发 / 1 处理中
+    status          SMALLINT     NOT NULL DEFAULT 0, -- 0 待重发 / 1 处理中 / 2 已放弃（达重发上限，待人工介入）
     create_time     TIMESTAMP    NOT NULL DEFAULT now(),
     update_time     TIMESTAMP    NOT NULL DEFAULT now()
 );
@@ -20,4 +20,4 @@ COMMENT ON COLUMN t_mq_send_fail.topic IS '目标 Topic';
 COMMENT ON COLUMN t_mq_send_fail.body IS '消息体 JSON';
 COMMENT ON COLUMN t_mq_send_fail.retry_count IS '已补偿重发次数';
 COMMENT ON COLUMN t_mq_send_fail.next_retry_time IS '下次可重发时间（退避）';
-COMMENT ON COLUMN t_mq_send_fail.status IS '状态：0 待重发 / 1 处理中';
+COMMENT ON COLUMN t_mq_send_fail.status IS '状态：0 待重发 / 1 处理中 / 2 已放弃（达重发上限，待人工介入）';
