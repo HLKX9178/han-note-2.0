@@ -7,7 +7,7 @@
 FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
-COPY **/pom.xml ./
+COPY --parents **/pom.xml ./
 
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-distributed-id-generator/hannote-distributed-id-generator-api/src ./hannote-distributed-id-generator/hannote-distributed-id-generator-api/src

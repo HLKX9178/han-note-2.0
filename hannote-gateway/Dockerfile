@@ -8,7 +8,7 @@ FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
 # **/pom.xml 递归匹配所有层级的 pom.xml，保留原始目录结构
-COPY **/pom.xml ./
+COPY --parents **/pom.xml ./
 
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-gateway/src ./hannote-gateway/src
