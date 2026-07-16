@@ -8,14 +8,9 @@ FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
 COPY pom.xml ./
-COPY hannote-framework/pom.xml ./hannote-framework/
-COPY hannote-framework/hannote-common/pom.xml ./hannote-framework/hannote-common/
-COPY hannote-framework/hannote-spring-boot-starter-biz-context/pom.xml ./hannote-framework/hannote-spring-boot-starter-biz-context/
-COPY hannote-framework/hannote-spring-boot-starter-biz-operationlog/pom.xml ./hannote-framework/hannote-spring-boot-starter-biz-operationlog/
-COPY hannote-framework/hannote-spring-boot-starter-rpc/pom.xml ./hannote-framework/hannote-spring-boot-starter-rpc/
-COPY hannote-user-relation/pom.xml ./hannote-user-relation/
-COPY hannote-user-relation/hannote-user-relation-api/pom.xml ./hannote-user-relation/hannote-user-relation-api/
-COPY hannote-user-relation/hannote-user-relation-biz/pom.xml ./hannote-user-relation/hannote-user-relation-biz/
+COPY */pom.xml */*/pom.xml ./
+COPY hannote-framework/*/pom.xml ./hannote-framework/
+
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-user-relation/hannote-user-relation-api/src ./hannote-user-relation/hannote-user-relation-api/src
 COPY hannote-user-relation/hannote-user-relation-biz/src ./hannote-user-relation/hannote-user-relation-biz/src

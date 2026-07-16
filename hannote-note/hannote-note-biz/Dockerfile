@@ -8,14 +8,9 @@ FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
 COPY pom.xml ./
-COPY hannote-framework/pom.xml ./hannote-framework/
-COPY hannote-framework/hannote-common/pom.xml ./hannote-framework/hannote-common/
-COPY hannote-framework/hannote-spring-boot-starter-biz-context/pom.xml ./hannote-framework/hannote-spring-boot-starter-biz-context/
-COPY hannote-framework/hannote-spring-boot-starter-biz-operationlog/pom.xml ./hannote-framework/hannote-spring-boot-starter-biz-operationlog/
-COPY hannote-framework/hannote-spring-boot-starter-rpc/pom.xml ./hannote-framework/hannote-spring-boot-starter-rpc/
-COPY hannote-note/pom.xml ./hannote-note/
-COPY hannote-note/hannote-note-api/pom.xml ./hannote-note/hannote-note-api/
-COPY hannote-note/hannote-note-biz/pom.xml ./hannote-note/hannote-note-biz/
+COPY */pom.xml */*/pom.xml ./
+COPY hannote-framework/*/pom.xml ./hannote-framework/
+
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-note/hannote-note-api/src ./hannote-note/hannote-note-api/src
 COPY hannote-note/hannote-note-biz/src ./hannote-note/hannote-note-biz/src

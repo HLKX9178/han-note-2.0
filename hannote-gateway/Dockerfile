@@ -7,13 +7,12 @@
 FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
+# 复制所有模块的 pom.xml（Maven reactor 需要所有 <modules> 条目对应的 pom 存在）
 COPY pom.xml ./
-COPY hannote-framework/pom.xml ./hannote-framework/
-COPY hannote-framework/hannote-common/pom.xml ./hannote-framework/hannote-common/
-COPY hannote-framework/hannote-spring-boot-starter-biz-context/pom.xml ./hannote-framework/hannote-spring-boot-starter-biz-context/
-COPY hannote-framework/hannote-spring-boot-starter-biz-operationlog/pom.xml ./hannote-framework/hannote-spring-boot-starter-biz-operationlog/
-COPY hannote-framework/hannote-spring-boot-starter-rpc/pom.xml ./hannote-framework/hannote-spring-boot-starter-rpc/
-COPY hannote-gateway/pom.xml ./hannote-gateway/
+COPY */pom.xml */*/pom.xml ./
+COPY hannote-framework/*/pom.xml ./hannote-framework/
+
+# 仅复制本服务所需的源码
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-gateway/src ./hannote-gateway/src
 
