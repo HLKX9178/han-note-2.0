@@ -1,0 +1,29 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR}
+        namespace: ${NACOS_NAMESPACE:hannote}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${PG_HOST}:${PG_PORT:5432}/${PG_DATABASE:hannote}
+    username: ${PG_USERNAME}
+    password: ${PG_PASSWORD}
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 60000
+      idle-timeout: 300000
+      max-lifetime: 900000
+      pool-name: HannoteHikariPool
+
+elasticsearch:
+  address: ${ES_ADDRESS}
+
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER}
+  consumer:
+    group: hannote_search_group
+    pull-batch-size: 10

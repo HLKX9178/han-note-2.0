@@ -1,0 +1,33 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR}
+        namespace: ${NACOS_NAMESPACE:hannote}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+  data:
+    redis:
+      database: ${REDIS_DATABASE:0}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      timeout: 5s
+      connect-timeout: 5s
+      lettuce:
+        pool:
+          max-active: 200
+          max-wait: -1ms
+          min-idle: 0
+          max-idle: 10
+
+aliyun:
+  access-key-id: ${ALIYUN_ACCESS_KEY_ID}
+  access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET}
+  sms:
+    sign-name: ${ALIYUN_SMS_SIGN_NAME}
+    template-code: ${ALIYUN_SMS_TEMPLATE_CODE}
+
+hannote:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: ${JWT_EXPIRATION:2592000}

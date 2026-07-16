@@ -1,0 +1,40 @@
+# Maven
+target/
+*.class
+*.jar
+*.war
+.flattened-pom.xml
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# Git
+.git/
+.gitignore
+
+# Logs
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+docs/
+README*.md
+
+# Scripts
+scripts/
+
+# Qoder
+.qoder/
+.agents/
+.superpowers/
+skills-lock.json

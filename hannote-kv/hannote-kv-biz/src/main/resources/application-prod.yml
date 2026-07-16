@@ -1,0 +1,13 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR}
+        namespace: ${NACOS_NAMESPACE:hannote}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+  cassandra:
+    keyspace-name: ${CASSANDRA_KEYSPACE:hannote}
+    contact-points: ${CASSANDRA_HOST}
+    port: ${CASSANDRA_PORT:9042}
+    local-datacenter: ${CASSANDRA_DATACENTER:datacenter1}
+    schema-action: none

@@ -1,0 +1,13 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR}
+        namespace: ${NACOS_NAMESPACE:hannote}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:0}
