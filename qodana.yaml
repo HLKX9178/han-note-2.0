@@ -2,36 +2,28 @@
 #               Qodana analysis is configured by qodana.yaml file               #
 #             https://www.jetbrains.com/help/qodana/qodana-yaml.html            #
 #-------------------------------------------------------------------------------#
-
 #################################################################################
 #              WARNING: Do not store sensitive information in this file,        #
 #               as its contents will be included in the Qodana report.          #
 #################################################################################
 version: "1.0"
-
 #Specify inspection profile for code analysis
 profile:
   name: qodana.starter
-
 #Enable inspections
 #include:
 #  - name: <SomeEnabledInspectionId>
-
 #Disable inspections
 #exclude:
 #  - name: <SomeDisabledInspectionId>
 #    paths:
 #      - <path/where/not/run/inspection>
-
 projectJDK: "25" #(Applied in CI/CD pipeline)
-
 #Execute shell command before Qodana execution (Applied in CI/CD pipeline)
 #bootstrap: sh ./prepare-qodana.sh
-
 #Install IDE plugins before Qodana execution (Applied in CI/CD pipeline)
 #plugins:
 #  - id: <plugin.id> #(plugin id can be found at https://plugins.jetbrains.com)
-
 # Quality gate. Will fail the CI/CD pipeline if any condition is not met
 # severityThresholds - configures maximum thresholds for different problem severities
 # testCoverageThresholds - configures minimum code coverage on a whole project and newly added code
@@ -43,7 +35,131 @@ projectJDK: "25" #(Applied in CI/CD pipeline)
 #  testCoverageThresholds:
 #    fresh: 70
 #    total: 50
-  
+
 #Qodana supports other languages, for example, Python, JavaScript, TypeScript, Go, C#, PHP
 #For all supported languages see https://www.jetbrains.com/help/qodana/linters.html
 linter: jetbrains/qodana-jvm-community:2026.1
+include:
+  - name: UNUSED_IMPORT
+exclude:
+  - name: All
+    paths:
+      - hannote-auth
+      - hannote-auth/src
+      - hannote-auth/src/main
+      - hannote-auth/src/main/java
+      - hannote-auth/src/main/java/com
+      - hannote-auth/src/main/java/com/hanserwei
+      - hannote-auth/src/main/java/com/hanserwei/auth
+      - hannote-auth/src/main/java/com/hanserwei/auth/HannoteAuthApplication.java
+      - hannote-comment
+      - hannote-comment/hannote-comment-biz
+      - hannote-comment/hannote-comment-biz/src
+      - hannote-comment/hannote-comment-biz/src/main
+      - hannote-comment/hannote-comment-biz/src/main/java
+      - hannote-comment/hannote-comment-biz/src/main/java/com
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei/comment
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei/comment/exception
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei/comment/exception/GlobalExceptionHandler.java
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei/comment/service
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei/comment/service/impl
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei/comment/service/impl/CommentQueryServiceImpl.java
+      - hannote-comment/hannote-comment-biz/src/main/java/com/hanserwei/comment/HannoteCommentApplication.java
+      - hannote-count
+      - hannote-count/hannote-count-biz
+      - hannote-count/hannote-count-biz/src
+      - hannote-count/hannote-count-biz/src/main
+      - hannote-count/hannote-count-biz/src/main/java
+      - hannote-count/hannote-count-biz/src/main/java/com
+      - hannote-count/hannote-count-biz/src/main/java/com/hanserwei
+      - hannote-count/hannote-count-biz/src/main/java/com/hanserwei/count
+      - hannote-count/hannote-count-biz/src/main/java/com/hanserwei/count/HannoteCountApplication.java
+      - hannote-data-align
+      - hannote-data-align/src
+      - hannote-data-align/src/main
+      - hannote-data-align/src/main/java
+      - hannote-data-align/src/main/java/com
+      - hannote-data-align/src/main/java/com/hanserwei
+      - hannote-data-align/src/main/java/com/hanserwei/dataalign
+      - hannote-data-align/src/main/java/com/hanserwei/dataalign/HannoteDataAlignApplication.java
+      - hannote-distributed-id-generator
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src/main
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src/main/java
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src/main/java/com
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src/main/java/com/hanserwei
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src/main/java/com/hanserwei/id
+      - hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src/main/java/com/hanserwei/id/HannoteDistributedIdGeneratorApplication.java
+      - hannote-gateway
+      - hannote-gateway/src
+      - hannote-gateway/src/main
+      - hannote-gateway/src/main/java
+      - hannote-gateway/src/main/java/com
+      - hannote-gateway/src/main/java/com/hanserwei
+      - hannote-gateway/src/main/java/com/hanserwei/gateway
+      - hannote-gateway/src/main/java/com/hanserwei/gateway/HannoteGatewayApplication.java
+      - hannote-gateway/src/main/resources
+      - hannote-gateway/src/main/resources/application.yml
+      - hannote-kv
+      - hannote-kv/hannote-kv-biz
+      - hannote-kv/hannote-kv-biz/src
+      - hannote-kv/hannote-kv-biz/src/main
+      - hannote-kv/hannote-kv-biz/src/main/java
+      - hannote-kv/hannote-kv-biz/src/main/java/com
+      - hannote-kv/hannote-kv-biz/src/main/java/com/hanserwei
+      - hannote-kv/hannote-kv-biz/src/main/java/com/hanserwei/kv
+      - hannote-kv/hannote-kv-biz/src/main/java/com/hanserwei/kv/service
+      - hannote-kv/hannote-kv-biz/src/main/java/com/hanserwei/kv/service/impl
+      - hannote-kv/hannote-kv-biz/src/main/java/com/hanserwei/kv/service/impl/CommentContentServiceImpl.java
+      - hannote-kv/hannote-kv-biz/src/main/java/com/hanserwei/kv/HannoteKvApplication.java
+      - hannote-note
+      - hannote-note/hannote-note-biz
+      - hannote-note/hannote-note-biz/src
+      - hannote-note/hannote-note-biz/src/main
+      - hannote-note/hannote-note-biz/src/main/java
+      - hannote-note/hannote-note-biz/src/main/java/com
+      - hannote-note/hannote-note-biz/src/main/java/com/hanserwei
+      - hannote-note/hannote-note-biz/src/main/java/com/hanserwei/note
+      - hannote-note/hannote-note-biz/src/main/java/com/hanserwei/note/HannoteNoteApplication.java
+      - hannote-oss
+      - hannote-oss/hannote-oss-biz
+      - hannote-oss/hannote-oss-biz/src
+      - hannote-oss/hannote-oss-biz/src/main
+      - hannote-oss/hannote-oss-biz/src/main/java
+      - hannote-oss/hannote-oss-biz/src/main/java/com
+      - hannote-oss/hannote-oss-biz/src/main/java/com/hanserwei
+      - hannote-oss/hannote-oss-biz/src/main/java/com/hanserwei/oss
+      - hannote-oss/hannote-oss-biz/src/main/java/com/hanserwei/oss/HannoteOssApplication.java
+      - hannote-oss/hannote-oss-biz/src/main/resources
+      - hannote-oss/hannote-oss-biz/src/main/resources/application-prod.yml
+      - hannote-search
+      - hannote-search/src
+      - hannote-search/src/main
+      - hannote-search/src/main/java
+      - hannote-search/src/main/java/com
+      - hannote-search/src/main/java/com/hanserwei
+      - hannote-search/src/main/java/com/hanserwei/search
+      - hannote-search/src/main/java/com/hanserwei/search/HannoteSearchApplication.java
+      - hannote-user
+      - hannote-user/hannote-user-biz
+      - hannote-user/hannote-user-biz/src
+      - hannote-user/hannote-user-biz/src/main
+      - hannote-user/hannote-user-biz/src/main/java
+      - hannote-user/hannote-user-biz/src/main/java/com
+      - hannote-user/hannote-user-biz/src/main/java/com/hanserwei
+      - hannote-user/hannote-user-biz/src/main/java/com/hanserwei/user
+      - hannote-user/hannote-user-biz/src/main/java/com/hanserwei/user/service
+      - hannote-user/hannote-user-biz/src/main/java/com/hanserwei/user/service/impl
+      - hannote-user/hannote-user-biz/src/main/java/com/hanserwei/user/service/impl/UserServiceImpl.java
+      - hannote-user/hannote-user-biz/src/main/java/com/hanserwei/user/HannoteUserApplication.java
+      - hannote-user-relation
+      - hannote-user-relation/hannote-user-relation-biz
+      - hannote-user-relation/hannote-user-relation-biz/src
+      - hannote-user-relation/hannote-user-relation-biz/src/main
+      - hannote-user-relation/hannote-user-relation-biz/src/main/java
+      - hannote-user-relation/hannote-user-relation-biz/src/main/java/com
+      - hannote-user-relation/hannote-user-relation-biz/src/main/java/com/hanserwei
+      - hannote-user-relation/hannote-user-relation-biz/src/main/java/com/hanserwei/relation
+      - hannote-user-relation/hannote-user-relation-biz/src/main/java/com/hanserwei/relation/HannoteUserRelationApplication.java
