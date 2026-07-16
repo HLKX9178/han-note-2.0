@@ -7,12 +7,9 @@
 FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
-# 复制所有模块的 pom.xml（Maven reactor 需要所有 <modules> 条目对应的 pom 存在）
-COPY pom.xml ./
-COPY */pom.xml */*/pom.xml ./
-COPY hannote-framework/*/pom.xml ./hannote-framework/
+# **/pom.xml 递归匹配所有层级的 pom.xml，保留原始目录结构
+COPY **/pom.xml ./
 
-# 仅复制本服务所需的源码
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-gateway/src ./hannote-gateway/src
 

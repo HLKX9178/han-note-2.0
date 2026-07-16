@@ -7,9 +7,7 @@
 FROM maven:3.9-eclipse-temurin-25 AS builder
 WORKDIR /build
 
-COPY pom.xml ./
-COPY */pom.xml */*/pom.xml ./
-COPY hannote-framework/*/pom.xml ./hannote-framework/
+COPY **/pom.xml ./
 
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-note/hannote-note-api/src ./hannote-note/hannote-note-api/src
