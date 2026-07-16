@@ -23,6 +23,14 @@ spring:
     username: <pg-user>
     password: <pg-password>
     driver-class-name: org.postgresql.Driver
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 60000
+      idle-timeout: 300000
+      max-lifetime: 900000
+      pool-name: HannoteHikariPool
 
   # Redis（关注/粉丝缓存预留）
   data:

@@ -24,9 +24,15 @@ public interface MQConstants {
     /** Topic：删除评论正文 */
     String TOPIC_DELETE_COMMENT_CONTENT = "DeleteCommentContentTopic";
 
+    /** Tag：点赞 */
     String TAG_LIKE = "Like";
+
+    /** Tag：取消点赞 */
     String TAG_UNLIKE = "Unlike";
 
+    /** 消费者组：广播删除评论本地缓存 */
     String GROUP_DELETE_LOCAL_CACHE = "hannote_comment_delete_local_cache_group";
+
+    /** 消费者组：删除评论正文 */
     String GROUP_DELETE_CONTENT = "hannote_comment_delete_content_group";
 }
