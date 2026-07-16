@@ -16,16 +16,12 @@ COPY hannote-framework/hannote-spring-boot-starter-rpc/pom.xml ./hannote-framewo
 COPY hannote-user-relation/pom.xml ./hannote-user-relation/
 COPY hannote-user-relation/hannote-user-relation-api/pom.xml ./hannote-user-relation/hannote-user-relation-api/
 COPY hannote-user-relation/hannote-user-relation-biz/pom.xml ./hannote-user-relation/hannote-user-relation-biz/
-
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-user-relation/hannote-user-relation-biz/pom.xml -am dependency:go-offline -B
-
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-user-relation/hannote-user-relation-api/src ./hannote-user-relation/hannote-user-relation-api/src
 COPY hannote-user-relation/hannote-user-relation-biz/src ./hannote-user-relation/hannote-user-relation-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-user-relation/hannote-user-relation-biz/pom.xml -am clean package -DskipTests -B
+    mvn -f hannote-user-relation/hannote-user-relation-biz/pom.xml -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

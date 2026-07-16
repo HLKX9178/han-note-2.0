@@ -16,16 +16,12 @@ COPY hannote-framework/hannote-spring-boot-starter-rpc/pom.xml ./hannote-framewo
 COPY hannote-distributed-id-generator/pom.xml ./hannote-distributed-id-generator/
 COPY hannote-distributed-id-generator/hannote-distributed-id-generator-api/pom.xml ./hannote-distributed-id-generator/hannote-distributed-id-generator-api/
 COPY hannote-distributed-id-generator/hannote-distributed-id-generator-biz/pom.xml ./hannote-distributed-id-generator/hannote-distributed-id-generator-biz/
-
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-distributed-id-generator/hannote-distributed-id-generator-biz/pom.xml -am dependency:go-offline -B
-
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-distributed-id-generator/hannote-distributed-id-generator-api/src ./hannote-distributed-id-generator/hannote-distributed-id-generator-api/src
 COPY hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src ./hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-distributed-id-generator/hannote-distributed-id-generator-biz/pom.xml -am clean package -DskipTests -B
+    mvn -f hannote-distributed-id-generator/hannote-distributed-id-generator-biz/pom.xml -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

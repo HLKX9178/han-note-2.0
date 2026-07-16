@@ -14,15 +14,11 @@ COPY hannote-framework/hannote-spring-boot-starter-biz-context/pom.xml ./hannote
 COPY hannote-framework/hannote-spring-boot-starter-biz-operationlog/pom.xml ./hannote-framework/hannote-spring-boot-starter-biz-operationlog/
 COPY hannote-framework/hannote-spring-boot-starter-rpc/pom.xml ./hannote-framework/hannote-spring-boot-starter-rpc/
 COPY hannote-auth/pom.xml ./hannote-auth/
-
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-auth/pom.xml -am dependency:go-offline -B
-
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-auth/src ./hannote-auth/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-auth/pom.xml -am clean package -DskipTests -B
+    mvn -f hannote-auth/pom.xml -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

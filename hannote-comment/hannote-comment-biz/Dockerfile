@@ -16,16 +16,12 @@ COPY hannote-framework/hannote-spring-boot-starter-rpc/pom.xml ./hannote-framewo
 COPY hannote-comment/pom.xml ./hannote-comment/
 COPY hannote-comment/hannote-comment-api/pom.xml ./hannote-comment/hannote-comment-api/
 COPY hannote-comment/hannote-comment-biz/pom.xml ./hannote-comment/hannote-comment-biz/
-
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-comment/hannote-comment-biz/pom.xml -am dependency:go-offline -B
-
 COPY hannote-framework/ ./hannote-framework/
 COPY hannote-comment/hannote-comment-api/src ./hannote-comment/hannote-comment-api/src
 COPY hannote-comment/hannote-comment-biz/src ./hannote-comment/hannote-comment-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-comment/hannote-comment-biz/pom.xml -am clean package -DskipTests -B
+    mvn -f hannote-comment/hannote-comment-biz/pom.xml -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
