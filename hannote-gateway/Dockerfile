@@ -18,7 +18,7 @@ COPY hannote-framework/ ./hannote-framework/
 COPY hannote-gateway/src ./hannote-gateway/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-gateway/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-gateway -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

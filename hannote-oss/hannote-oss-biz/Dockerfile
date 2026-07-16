@@ -21,7 +21,7 @@ COPY hannote-oss/hannote-oss-api/src ./hannote-oss/hannote-oss-api/src
 COPY hannote-oss/hannote-oss-biz/src ./hannote-oss/hannote-oss-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-oss/hannote-oss-biz/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-oss/hannote-oss-biz -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

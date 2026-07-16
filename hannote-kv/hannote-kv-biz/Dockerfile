@@ -21,7 +21,7 @@ COPY hannote-kv/hannote-kv-api/src ./hannote-kv/hannote-kv-api/src
 COPY hannote-kv/hannote-kv-biz/src ./hannote-kv/hannote-kv-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-kv/hannote-kv-biz/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-kv/hannote-kv-biz -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

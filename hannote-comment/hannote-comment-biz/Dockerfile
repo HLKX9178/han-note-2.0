@@ -21,7 +21,7 @@ COPY hannote-comment/hannote-comment-api/src ./hannote-comment/hannote-comment-a
 COPY hannote-comment/hannote-comment-biz/src ./hannote-comment/hannote-comment-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-comment/hannote-comment-biz/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-comment/hannote-comment-biz -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

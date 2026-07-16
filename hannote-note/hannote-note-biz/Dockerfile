@@ -21,7 +21,7 @@ COPY hannote-note/hannote-note-api/src ./hannote-note/hannote-note-api/src
 COPY hannote-note/hannote-note-biz/src ./hannote-note/hannote-note-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-note/hannote-note-biz/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-note/hannote-note-biz -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

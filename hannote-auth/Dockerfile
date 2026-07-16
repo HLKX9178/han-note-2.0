@@ -18,7 +18,7 @@ COPY hannote-framework/ ./hannote-framework/
 COPY hannote-auth/src ./hannote-auth/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-auth/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-auth -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

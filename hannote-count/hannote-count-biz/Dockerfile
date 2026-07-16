@@ -21,7 +21,7 @@ COPY hannote-count/hannote-count-api/src ./hannote-count/hannote-count-api/src
 COPY hannote-count/hannote-count-biz/src ./hannote-count/hannote-count-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-count/hannote-count-biz/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-count/hannote-count-biz -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

@@ -18,7 +18,7 @@ COPY hannote-framework/ ./hannote-framework/
 COPY hannote-search/src ./hannote-search/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-search/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-search -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

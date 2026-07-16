@@ -21,7 +21,7 @@ COPY hannote-distributed-id-generator/hannote-distributed-id-generator-api/src .
 COPY hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src ./hannote-distributed-id-generator/hannote-distributed-id-generator-biz/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f hannote-distributed-id-generator/hannote-distributed-id-generator-biz/pom.xml -am install -DskipTests -B
+    mvn -pl hannote-distributed-id-generator/hannote-distributed-id-generator-biz -am install -DskipTests -B
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
