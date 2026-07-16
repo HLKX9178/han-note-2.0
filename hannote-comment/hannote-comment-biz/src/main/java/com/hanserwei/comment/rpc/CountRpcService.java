@@ -24,6 +24,10 @@ public class CountRpcService {
 
     /**
      * 查询笔记全部评论数；失败返回 fallback.
+     *
+     * @param noteId   笔记 ID
+     * @param fallback 计数服务不可用时的兜底值（一般为一级评论总数）
+     * @return 计数服务返回值与 fallback 的较大者；失败降级为 fallback
      */
     public long findCommentTotal(Long noteId, long fallback) {
         try {

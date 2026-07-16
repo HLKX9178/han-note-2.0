@@ -28,9 +28,13 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class SendMqRetryHelper {
 
+    /** RocketMQ 模板：异步首发 + 重试时同步重发 */
     private final RocketMQTemplate rocketMQTemplate;
+    /** 重试模板：封装指数退避重试策略 */
     private final RetryTemplate retryTemplate;
+    /** 异步执行器（虚拟线程，见 ThreadPoolConfig）：承载重试任务的退避 sleep + 阻塞发送 */
     private final AsyncTaskExecutor taskExecutor;
+    /** 兜底表 Mapper：多次重试仍失败时落库待定时补偿 */
     private final MqSendFailDOMapper mqSendFailDOMapper;
 
     /**

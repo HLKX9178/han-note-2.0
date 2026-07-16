@@ -18,8 +18,12 @@ import java.util.concurrent.Executor;
 @Component
 public class CommentQueryExecutor implements Executor {
 
+    /** 实际执行器：虚拟线程、并发上限 300（背压） */
     private final SimpleAsyncTaskExecutor delegate;
 
+    /**
+     * 构造评论查询执行器：开启虚拟线程并设并发上限 300 做背压.
+     */
     public CommentQueryExecutor() {
         delegate = new SimpleAsyncTaskExecutor("CommentQuery-");
         delegate.setVirtualThreads(true);
@@ -31,6 +35,9 @@ public class CommentQueryExecutor implements Executor {
         delegate.execute(command);
     }
 
+    /**
+     * 容器销毁时关闭底层执行器，释放线程资源.
+     */
     @PreDestroy
     public void close() {
         delegate.close();

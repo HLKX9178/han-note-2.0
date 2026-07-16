@@ -18,6 +18,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FindCommentContentRspDTO {
 
+    /** 评论正文 UUID */
     private String contentId;
+    /** 评论正文内容 */
     private String content;
 }

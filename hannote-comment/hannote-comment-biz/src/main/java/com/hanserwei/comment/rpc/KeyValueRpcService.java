@@ -104,6 +104,8 @@ public class KeyValueRpcService {
 
     /**
      * 批量删除评论正文；失败抛异常触发 MQ 重试.
+     *
+     * @param message 携带笔记 ID 与待删除正文复合主键的消息体
      */
     public void batchDeleteCommentContent(DeleteCommentContentMqDTO message) {
         List<CommentContentKeyReqDTO> items = message.getItems().stream()

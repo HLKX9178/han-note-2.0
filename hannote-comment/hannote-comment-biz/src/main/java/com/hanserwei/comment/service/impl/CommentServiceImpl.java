@@ -39,6 +39,16 @@ public class CommentServiceImpl implements CommentService {
     private final NoteRpcService noteRpcService;
     private final SendMqRetryHelper sendMqRetryHelper;
 
+    /**
+     * 发布评论（同步校验 + 预生成 ID，落库经 MQ 异步完成）.
+     *
+     * <p>正文与图片不可同时为空；发 MQ 前 RPC 校验笔记已发布，避免为不存在/已删笔记制造脏数据；
+     * 预生成分布式评论 ID 作为幂等基准，最终经可靠 MQ 异步落库。
+     *
+     * @param publishCommentReqVO 发布请求（笔记 ID / 正文 / 图片 / 被回复评论 ID）
+     * @return 统一成功响应
+     * @throws BizException 笔记不存在或分布式 ID 生成失败时抛出
+     */
     @Override
     public Response<?> publishComment(PublishCommentReqVO publishCommentReqVO) {
         String content = publishCommentReqVO.getContent();

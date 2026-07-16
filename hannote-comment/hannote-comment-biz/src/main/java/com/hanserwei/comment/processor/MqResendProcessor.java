@@ -45,9 +45,17 @@ public class MqResendProcessor implements BasicProcessor {
     /** 退避封顶（分钟） */
     private static final long BACKOFF_CAP_MINUTES = 60L;
 
+    /** 兜底表 Mapper：捞取待重发记录、删除或回写重试状态 */
     private final MqSendFailDOMapper mqSendFailDOMapper;
+    /** RocketMQ 模板：同步重发普通/顺序消息 */
     private final RocketMQTemplate rocketMQTemplate;
 
+    /**
+     * PowerJob 调度入口：捞取到期待重发记录并批量重发，汇总结果.
+     *
+     * @param context PowerJob 任务上下文
+     * @return 处理结果（成功标记 + 「resent=x, failed=y」摘要）
+     */
     @Override
     public ProcessResult process(TaskContext context) {
         List<MqSendFailDO> pending = mqSendFailDOMapper.selectPending(BATCH_LIMIT);

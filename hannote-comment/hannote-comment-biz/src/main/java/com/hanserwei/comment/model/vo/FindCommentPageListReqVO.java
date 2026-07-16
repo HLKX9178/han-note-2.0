@@ -20,9 +20,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FindCommentPageListReqVO {
 
+    /** 笔记 ID */
     @NotNull(message = "笔记 ID 不能为空")
     private Long noteId;
 
+    /** 页码，从 1 开始 */
     @Min(value = 1, message = "页码不能小于 1")
     @Builder.Default
     private Integer pageNo = 1;

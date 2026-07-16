@@ -19,5 +19,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DeleteCommentLocalCacheMqDTO {
+    /** 待各节点本地缓存清除的评论 ID 列表 */
     private List<Long> commentIds;
 }

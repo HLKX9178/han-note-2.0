@@ -47,34 +47,82 @@ public final class RedisKeyConstants {
     /** 布隆：日增量-笔记评论总数变更（笔记 ID 维度）前缀 */
     private static final String BLOOM_NOTE_COMMENT_NOTE_ID_PREFIX = "hannote:dataAlign:note:comment:noteIds:";
 
+    /**
+     * 构建「笔记点赞数变更-笔记 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomNoteLikeNoteIdKey(String date) {
         return BLOOM_NOTE_LIKE_NOTE_ID_PREFIX + date;
     }
 
+    /**
+     * 构建「笔记点赞数变更-发布者 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomNoteLikeUserIdKey(String date) {
         return BLOOM_NOTE_LIKE_USER_ID_PREFIX + date;
     }
 
+    /**
+     * 构建「笔记收藏数变更-笔记 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomNoteCollectNoteIdKey(String date) {
         return BLOOM_NOTE_COLLECT_NOTE_ID_PREFIX + date;
     }
 
+    /**
+     * 构建「笔记收藏数变更-发布者 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomNoteCollectUserIdKey(String date) {
         return BLOOM_NOTE_COLLECT_USER_ID_PREFIX + date;
     }
 
+    /**
+     * 构建「用户发布笔记数变更-用户 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomNoteOperateUserIdKey(String date) {
         return BLOOM_NOTE_OPERATE_USER_ID_PREFIX + date;
     }
 
+    /**
+     * 构建「用户关注数变更-源用户 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomUserFollowKey(String date) {
         return BLOOM_USER_FOLLOW_PREFIX + date;
     }
 
+    /**
+     * 构建「用户粉丝数变更-目标用户 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomUserFansKey(String date) {
         return BLOOM_USER_FANS_PREFIX + date;
     }
 
+    /**
+     * 构建「笔记评论总数变更-笔记 ID 维度」当日布隆 Key。
+     *
+     * @param date 日期（yyyyMMdd）
+     * @return 布隆过滤器 Key
+     */
     public static String buildBloomNoteCommentNoteIdKey(String date) {
         return BLOOM_NOTE_COMMENT_NOTE_ID_PREFIX + date;
     }

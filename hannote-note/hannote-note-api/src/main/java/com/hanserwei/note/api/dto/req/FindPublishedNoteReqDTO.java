@@ -19,6 +19,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FindPublishedNoteReqDTO {
 
+    /** 笔记 ID */
     @NotNull(message = "笔记 ID 不能为空")
     private Long noteId;
 }

@@ -19,6 +19,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DeleteCommentContentMqDTO {
+    /** 关联的笔记 ID */
     private Long noteId;
+    /** 待删除正文的复合主键列表 */
     private List<DeleteCommentContentItemMqDTO> items;
 }

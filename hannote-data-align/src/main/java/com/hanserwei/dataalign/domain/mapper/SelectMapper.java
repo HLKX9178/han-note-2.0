@@ -15,20 +15,76 @@ public interface SelectMapper {
 
     // ------------------------- 日增量临时表：分批查询变更 ID -------------------------
 
+    /**
+     * 分批取出关注数日增量表中待对齐的 userId（按主键升序取 batchSize 条）.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 userId 列表，空表返回空列表
+     */
     List<Long> selectBatchFollowingCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    /**
+     * 分批取出粉丝数日增量表中待对齐的 userId.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 userId 列表，空表返回空列表
+     */
     List<Long> selectBatchFansCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    /**
+     * 分批取出笔记点赞数日增量表中待对齐的 noteId.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 noteId 列表，空表返回空列表
+     */
     List<Long> selectBatchNoteLikeCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    /**
+     * 分批取出用户获赞数日增量表中待对齐的 userId.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 userId 列表，空表返回空列表
+     */
     List<Long> selectBatchUserLikeCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    /**
+     * 分批取出笔记收藏数日增量表中待对齐的 noteId.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 noteId 列表，空表返回空列表
+     */
     List<Long> selectBatchNoteCollectCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    /**
+     * 分批取出用户获藏数日增量表中待对齐的 userId.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 userId 列表，空表返回空列表
+     */
     List<Long> selectBatchUserCollectCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    /**
+     * 分批取出用户发布笔记数日增量表中待对齐的 userId.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 userId 列表，空表返回空列表
+     */
     List<Long> selectBatchNotePublishCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
+    /**
+     * 分批取出笔记评论总数日增量表中待对齐的 noteId.
+     *
+     * @param tableNameSuffix 表名后缀（{日期}_{分片序号}）
+     * @param batchSize       单批数量
+     * @return 待对齐的 noteId 列表，空表返回空列表
+     */
     List<Long> selectBatchNoteCommentCountTemp(@Param("tableNameSuffix") String tableNameSuffix, @Param("batchSize") int batchSize);
 
     // ------------------------- 源头表：count 真实值 -------------------------

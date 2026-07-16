@@ -17,6 +17,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DeleteCommentContentItemMqDTO {
+    /** 分表年月（ScyllaDB comment_content 分区键） */
     private String yearMonth;
+    /** 评论正文 ID（即 contentUuid） */
     private String contentId;
 }

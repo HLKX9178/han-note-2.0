@@ -25,6 +25,11 @@ public class ThreadPoolConfig {
     /** 并发上限：MQ 宕机时限制在途重试任务数，超出则提交阻塞（背压） */
     private static final int CONCURRENCY_LIMIT = 200;
 
+    /**
+     * MQ 发送失败重试专用异步执行器（虚拟线程 + 并发上限背压），注入 {@code SendMqRetryHelper}.
+     *
+     * @return 虚拟线程执行器
+     */
     @Bean(name = "taskExecutor")
     public AsyncTaskExecutor taskExecutor() {
         SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("CommentMqRetry-");

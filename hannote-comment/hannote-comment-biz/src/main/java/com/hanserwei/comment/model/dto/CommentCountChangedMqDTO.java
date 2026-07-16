@@ -18,7 +18,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CommentCountChangedMqDTO {
 
+    /** 事件 ID（幂等去重用） */
     private String eventId;
+    /** 评论数发生变更的笔记 ID */
     private Long noteId;
+    /** 评论数增量（正数新增、负数删除） */
     private Integer delta;
 }

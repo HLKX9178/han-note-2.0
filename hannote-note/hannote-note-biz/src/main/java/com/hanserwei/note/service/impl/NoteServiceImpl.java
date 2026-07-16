@@ -139,6 +139,15 @@ public class NoteServiceImpl implements NoteService {
         return script;
     }
 
+    /**
+     * 查询正常发布中的笔记最小信息.
+     *
+     * <p>仅回传 noteId 与 creatorId，供评论等服务做归属/存在性校验；SQL 层已按
+     * {@code status = 1} 过滤，非发布态或不存在时返回 data 为 null。
+     *
+     * @param request 查询入参
+     * @return 笔记最小信息；不存在时 data 为 null
+     */
     @Override
     public Response<FindPublishedNoteRspDTO> findPublishedById(FindPublishedNoteReqDTO request) {
         return Response.success(noteDOMapper.selectPublishedById(request.getNoteId()));

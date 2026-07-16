@@ -18,6 +18,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FindPublishedNoteRspDTO {
 
+    /** 笔记 ID */
     private Long noteId;
+    /** 笔记发布者用户 ID */
     private Long creatorId;
 }

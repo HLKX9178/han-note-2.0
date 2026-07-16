@@ -17,6 +17,7 @@ import org.springframework.web.service.annotation.PostExchange;
 @HttpExchange
 public interface CountHttpApi {
 
+    /** 计数服务内网接口统一前缀 */
     String PREFIX = "/count";
 
     /**

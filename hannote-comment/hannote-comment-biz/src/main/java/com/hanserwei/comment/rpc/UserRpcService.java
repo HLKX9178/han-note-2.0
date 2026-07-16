@@ -36,6 +36,9 @@ public class UserRpcService {
 
     /**
      * 批量查询用户并按 ID 返回 Map；单批失败降级为空批次.
+     *
+     * @param userIds 用户 ID 列表（内部去重后按 10 个一批并发查询）
+     * @return 用户 ID -> 用户信息的映射；查询失败的批次不计入结果
      */
     public Map<Long, FindUserByIdRspDTO> findByIds(List<Long> userIds) {
         List<Long> distinct = new ArrayList<>(new LinkedHashSet<>(userIds));
@@ -49,6 +52,12 @@ public class UserRpcService {
                 .collect(Collectors.toMap(FindUserByIdRspDTO::getId, item -> item, (left, right) -> left));
     }
 
+    /**
+     * 单批用户查询，任何异常均降级为空集合，避免拖垮整体聚合.
+     *
+     * @param batch 单批用户 ID（不超过 {@link #BATCH_SIZE}）
+     * @return 用户信息集合；失败返回空集合
+     */
     private List<FindUserByIdRspDTO> findBatch(List<Long> batch) {
         try {
             Response<List<FindUserByIdRspDTO>> response = userHttpApi.findByIds(

@@ -20,8 +20,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class LikeUnlikeCommentMqDTO {
 
+    /** 操作用户 ID */
     private Long userId;
+    /** 被点赞/取消点赞的评论 ID */
     private Long commentId;
+    /** 操作类型：0 取消点赞 / 1 点赞（见 CommentLikeUnlikeTypeEnum） */
     private Integer type;
+    /** 操作时间 */
     private LocalDateTime createTime;
 }

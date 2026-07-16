@@ -31,20 +31,32 @@ import java.time.format.DateTimeFormatter;
 @RequiredArgsConstructor
 public class CreateDailyTableProcessor implements BasicProcessor {
 
+    /** 表名后缀的日期格式（yyyyMMdd） */
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final CreateTableMapper createTableMapper;
     private final TableShardProperties tableShardProperties;
 
+    /**
+     * 提前建好明日全部分片的 8 张日增量临时表.
+     *
+     * <p>单机任务：任一分片建表失败只记日志、不中断其余分片，最终整体返回成功，
+     * 避免个别 DDL 异常导致次日增量无表可落。
+     *
+     * @param context PowerJob 任务上下文，用于获取控制台在线日志 {@link OmsLogger}
+     * @return 建表结果（携带日期与分片数）
+     */
     @Override
     public ProcessResult process(TaskContext context) {
         OmsLogger omsLogger = context.getOmsLogger();
 
+        // 1. 取分片数，并把日期定位到「明天」（提前一天建表）
         int shards = tableShardProperties.getShards();
         String date = LocalDate.now().plusDays(1).format(DATE_FORMATTER);
         omsLogger.info("## 开始创建明日日增量表, date={}, shards={}", date, shards);
         log.info("## 开始创建明日日增量表, date={}, shards={}", date, shards);
 
+        // 2. 逐分片创建 8 张临时表，单分片失败不影响其余分片
         for (int hashKey = 0; hashKey < shards; hashKey++) {
             String suffix = TableConstants.buildTableNameSuffix(date, hashKey);
             try {

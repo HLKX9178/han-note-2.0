@@ -31,11 +31,21 @@ import java.time.format.DateTimeFormatter;
 @RequiredArgsConstructor
 public class DeleteExpiredTableProcessor implements BasicProcessor {
 
+    /** 表名后缀的日期格式（yyyyMMdd） */
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final DeleteTableMapper deleteTableMapper;
     private final TableShardProperties tableShardProperties;
 
+    /**
+     * 清理近一个月已对齐完成的日增量临时表.
+     *
+     * <p>单机任务：从「昨天」向前回溯一个月逐日、逐分片 DROP，跳过今天（今日表仍在收集当日增量、
+     * 待明日凌晨对齐）。单张删表失败只记日志、不中断，整体返回成功。
+     *
+     * @param context PowerJob 任务上下文，用于获取控制台在线日志 {@link OmsLogger}
+     * @return 删表结果（携带分片数）
+     */
     @Override
     public ProcessResult process(TaskContext context) {
         OmsLogger omsLogger = context.getOmsLogger();
@@ -44,10 +54,12 @@ public class DeleteExpiredTableProcessor implements BasicProcessor {
         omsLogger.info("## 开始删除近一个月已对齐的日增量临时表, shards={}", shards);
         log.info("## 开始删除近一个月已对齐的日增量临时表, shards={}", shards);
 
+        // 1. 回溯区间：(今天-1个月, 今天)，不含今天
         LocalDate today = LocalDate.now();
         LocalDate endDate = today.minusMonths(1);
         LocalDate cursor = today;
 
+        // 2. 逐日向前推进，每日逐分片 DROP 8 张临时表
         while (cursor.isAfter(endDate)) {
             // 从昨天开始往前推，不含今天
             cursor = cursor.minusDays(1);

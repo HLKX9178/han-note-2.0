@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 @TableName("t_mq_send_fail")
 public class MqSendFailDO {
 
+    /** 主键（自增） */
     @TableId(type = IdType.AUTO)
     private Long id;
 
@@ -48,7 +49,9 @@ public class MqSendFailDO {
     /** 状态：0 待重发 / 1 处理中 */
     private Integer status;
 
+    /** 创建时间 */
     private LocalDateTime createTime;
 
+    /** 更新时间 */
     private LocalDateTime updateTime;
 }

@@ -26,22 +26,41 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class CommentCacheManager {
 
+    /** Redis 操作模板：失效评论列表/计数/详情等 L2 缓存 */
     private final StringRedisTemplate stringRedisTemplate;
 
+    /** 评论详情本地缓存 L1（Caffeine），写后 1 小时过期，上限 1 万条 */
     private final Cache<Long, CommentDetailCacheDTO> localDetailCache = Caffeine.newBuilder()
             .initialCapacity(10000)
             .maximumSize(10000)
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
 
+    /**
+     * 读取本地 L1 评论详情缓存.
+     *
+     * @param commentId 评论 ID
+     * @return 详情缓存 DTO；未命中返回 {@code null}
+     */
     public CommentDetailCacheDTO getLocalDetail(Long commentId) {
         return localDetailCache.getIfPresent(commentId);
     }
 
+    /**
+     * 写入本地 L1 评论详情缓存.
+     *
+     * @param commentId 评论 ID
+     * @param detail    详情缓存 DTO
+     */
     public void putLocalDetail(Long commentId, CommentDetailCacheDTO detail) {
         localDetailCache.put(commentId, detail);
     }
 
+    /**
+     * 批量失效本地 L1 评论详情缓存（本机），供删除/广播失效场景调用.
+     *
+     * @param commentIds 待失效的评论 ID 列表
+     */
     public void invalidateLocalDetails(List<Long> commentIds) {
         localDetailCache.invalidateAll(commentIds);
     }

@@ -58,14 +58,22 @@ import java.util.Set;
 @Slf4j
 public class Comment2DBConsumer {
 
+    /** RocketMQ NameServer 地址（从配置注入，供原生消费者连接） */
     private final String namesrvAddr;
+    /** 评论元数据 Mapper（批量写 t_comment、锁被回复评论、重算根评论统计） */
     private final CommentDOMapper commentDOMapper;
+    /** DTO -> CommentBO 清洗拼装器 */
     private final CommentAssembler commentAssembler;
+    /** KV 服务 RPC：批量写 ScyllaDB 评论正文 */
     private final KeyValueRpcService keyValueRpcService;
+    /** 编程式事务：批量落库与根评论统计重算在同一事务内 */
     private final TransactionTemplate transactionTemplate;
+    /** 可靠发送助手：转发评论计数变更 MQ，失败进入兜底补偿 */
     private final SendMqRetryHelper sendMqRetryHelper;
+    /** 评论缓存管理器：落库后失效受影响的列表/计数缓存 */
     private final CommentCacheManager commentCacheManager;
 
+    /** 原生批量消费者实例，由 {@link #init()} 创建、{@link #destroy()} 关闭 */
     private DefaultMQPushConsumer consumer;
 
     /** 令牌桶：每秒 1000（按数据库承受力调整） */
@@ -87,6 +95,16 @@ public class Comment2DBConsumer {
         this.commentCacheManager = commentCacheManager;
     }
 
+    /**
+     * 初始化并启动原生批量消费者：订阅 {@code PublishCommentTopic}（全 Tag），集群模式、
+     * 单批最多 30 条并发消费.
+     *
+     * <p>单批处理链路：令牌桶限流 → 解析 DTO → 批量回查被回复评论（含批内递归解析）→ 清洗为
+     * {@link CommentBO} → 先 RPC 写 ScyllaDB 正文、再 PG 批量写元数据 → 仅对真实新增行触发缓存失效
+     * 与评论计数变更 MQ。全链路幂等，异常整批 {@code RECONSUME_LATER} 重试至最终一致。
+     *
+     * @throws MQClientException 消费者订阅/启动失败
+     */
     @PostConstruct
     public void init() throws MQClientException {
         String group = "hannote_comment_group_" + MQConstants.TOPIC_PUBLISH_COMMENT;
@@ -175,6 +193,7 @@ public class Comment2DBConsumer {
                     return new ArrayList<>(actualInserted);
                 });
 
+                // 仅对真实新增行触发副作用：失效缓存 + 按笔记聚合评论增量、可靠转发计数变更 MQ
                 if (CollUtil.isNotEmpty(inserted)) {
                     commentCacheManager.afterCommentsInserted(inserted);
                     Map<Long, Long> countByNoteId = inserted.stream()
@@ -199,6 +218,9 @@ public class Comment2DBConsumer {
         log.info("## Comment2DBConsumer 启动完成，批量消费 {}", MQConstants.TOPIC_PUBLISH_COMMENT);
     }
 
+    /**
+     * 容器销毁时关闭消费者，释放长连接与线程资源.
+     */
     @PreDestroy
     public void destroy() {
         if (Objects.nonNull(consumer)) {
@@ -210,6 +232,17 @@ public class Comment2DBConsumer {
         }
     }
 
+    /**
+     * 解析同批次内尚未落库的被回复评论，补齐 {@code contentUuid} 之外的最小投影.
+     *
+     * <p>同一批可能同时含「父评论消息 + 其回复消息」，此时回查 DB 查不到父评论。若不处理，整批会因
+     * 找不到父评论而永久重试、父评论也无法先落库。这里以批内 DTO 递归解析出父评论的 level/parentId
+     * 投影，与已落库的 {@code persisted} 合并返回。
+     *
+     * @param dtos      本批次评论消息
+     * @param persisted 已从 DB 查回的被回复评论映射
+     * @return 合并「已落库 + 批内解析」后的评论 ID -> 评论投影映射
+     */
     private Map<Long, CommentDO> resolveBatchReplyComments(List<PublishCommentMqDTO> dtos,
                                                             Map<Long, CommentDO> persisted) {
         Map<Long, CommentDO> resolved = new HashMap<>(persisted);
@@ -221,6 +254,18 @@ public class Comment2DBConsumer {
         return resolved;
     }
 
+    /**
+     * 递归解析单条批内评论的最小投影：一级评论直接构造，二级评论先解析其被回复评论以确定归属根评论.
+     *
+     * <p>{@code visiting} 记录递归路径以检测回复关系成环；解析结果回填 {@code resolved} 供后续复用。
+     *
+     * @param commentId 待解析评论 ID
+     * @param batchById 批内评论 ID -> DTO 索引
+     * @param resolved  已解析结果缓存（读写）
+     * @param visiting  当前递归路径，用于环检测
+     * @return 评论最小投影；批内查不到该评论时返回 {@code null}
+     * @throws IllegalStateException 批内回复关系存在环
+     */
     private CommentDO resolveBatchComment(Long commentId,
                                            Map<Long, PublishCommentMqDTO> batchById,
                                            Map<Long, CommentDO> resolved,

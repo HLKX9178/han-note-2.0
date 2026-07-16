@@ -19,6 +19,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LikeCommentReqVO {
 
+    /** 目标评论 ID */
     @NotNull(message = "评论 ID 不能为空")
     private Long commentId;
 }

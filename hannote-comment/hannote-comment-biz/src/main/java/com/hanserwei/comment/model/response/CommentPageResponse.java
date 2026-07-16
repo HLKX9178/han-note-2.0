@@ -18,6 +18,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class CommentPageResponse<T> extends PageResponse<T> {
 
+    /** 笔记全部评论数（含一二级，区别于分页 totalCount 仅统计一级） */
     private long commentTotal;
 
     /**

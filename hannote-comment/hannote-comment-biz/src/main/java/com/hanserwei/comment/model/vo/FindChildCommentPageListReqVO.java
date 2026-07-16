@@ -20,9 +20,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FindChildCommentPageListReqVO {
 
+    /** 一级（父）评论 ID */
     @NotNull(message = "一级评论 ID 不能为空")
     private Long parentCommentId;
 
+    /** 页码，从 1 开始 */
     @Min(value = 1, message = "页码不能小于 1")
     @Builder.Default
     private Integer pageNo = 1;
