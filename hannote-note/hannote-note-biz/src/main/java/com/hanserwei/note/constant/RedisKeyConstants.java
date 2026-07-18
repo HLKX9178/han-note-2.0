@@ -30,11 +30,11 @@ public final class RedisKeyConstants {
         return NOTE_DETAIL_KEY_PREFIX + noteId;
     }
 
-    /** 用户笔记点赞布隆过滤器 Key 前缀 */
-    public static final String BLOOM_NOTE_LIKE_KEY_PREFIX = "hannote:note:bloom:like:";
+    /** 用户笔记点赞 Roaring Bitmap Key 前缀 */
+    public static final String RBITMAP_NOTE_LIKE_KEY_PREFIX = "hannote:note:rbitmap:like:";
 
-    /** 用户笔记收藏布隆过滤器 Key 前缀 */
-    public static final String BLOOM_NOTE_COLLECT_KEY_PREFIX = "hannote:note:bloom:collect:";
+    /** 用户笔记收藏 Roaring Bitmap Key 前缀 */
+    public static final String RBITMAP_NOTE_COLLECT_KEY_PREFIX = "hannote:note:rbitmap:collect:";
 
     /** 用户笔记点赞列表 ZSET Key 前缀 */
     public static final String ZSET_NOTE_LIKE_KEY_PREFIX = "hannote:note:zset:like:";
@@ -43,23 +43,23 @@ public final class RedisKeyConstants {
     public static final String ZSET_NOTE_COLLECT_KEY_PREFIX = "hannote:note:zset:collect:";
 
     /**
-     * 构建用户笔记点赞布隆过滤器 Key
+     * 构建用户笔记点赞 Roaring Bitmap Key.
      *
      * @param userId 用户 ID
-     * @return hannote:note:bloom:like:{userId}
+     * @return hannote:note:rbitmap:like:{userId}
      */
-    public static String buildBloomNoteLikeKey(Long userId) {
-        return BLOOM_NOTE_LIKE_KEY_PREFIX + userId;
+    public static String buildRBitmapNoteLikeKey(Long userId) {
+        return RBITMAP_NOTE_LIKE_KEY_PREFIX + userId;
     }
 
     /**
-     * 构建用户笔记收藏布隆过滤器 Key
+     * 构建用户笔记收藏 Roaring Bitmap Key.
      *
      * @param userId 用户 ID
-     * @return hannote:note:bloom:collect:{userId}
+     * @return hannote:note:rbitmap:collect:{userId}
      */
-    public static String buildBloomNoteCollectKey(Long userId) {
-        return BLOOM_NOTE_COLLECT_KEY_PREFIX + userId;
+    public static String buildRBitmapNoteCollectKey(Long userId) {
+        return RBITMAP_NOTE_COLLECT_KEY_PREFIX + userId;
     }
 
     /**

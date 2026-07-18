@@ -23,21 +23,21 @@ class LikeEnumsTest {
     }
 
     @Test
-    void bloomAddResult_valueOf() {
-        assertEquals(NoteBloomAddResultEnum.NOT_EXIST, NoteBloomAddResultEnum.valueOf(-1L));
-        assertEquals(NoteBloomAddResultEnum.ALREADY, NoteBloomAddResultEnum.valueOf(1L));
-        assertEquals(NoteBloomAddResultEnum.SUCCESS, NoteBloomAddResultEnum.valueOf(0L));
-        assertNull(NoteBloomAddResultEnum.valueOf(2L));
-        assertNull(NoteBloomAddResultEnum.valueOf((Long) null));
+    void rbitmapAddResult_valueOf() {
+        assertEquals(NoteRBitmapAddResultEnum.NOT_EXIST, NoteRBitmapAddResultEnum.valueOf(-1L));
+        assertEquals(NoteRBitmapAddResultEnum.ALREADY, NoteRBitmapAddResultEnum.valueOf(1L));
+        assertEquals(NoteRBitmapAddResultEnum.SUCCESS, NoteRBitmapAddResultEnum.valueOf(0L));
+        assertNull(NoteRBitmapAddResultEnum.valueOf(2L));
+        assertNull(NoteRBitmapAddResultEnum.valueOf((Long) null));
     }
 
     @Test
-    void bloomCheckResult_valueOf() {
-        assertEquals(NoteBloomCheckResultEnum.NOT_EXIST, NoteBloomCheckResultEnum.valueOf(-1L));
-        assertEquals(NoteBloomCheckResultEnum.MARKED, NoteBloomCheckResultEnum.valueOf(1L));
-        assertEquals(NoteBloomCheckResultEnum.NOT_MARKED, NoteBloomCheckResultEnum.valueOf(0L));
-        assertNull(NoteBloomCheckResultEnum.valueOf(2L));
-        assertNull(NoteBloomCheckResultEnum.valueOf((Long) null));
+    void rbitmapCheckResult_valueOf() {
+        assertEquals(NoteRBitmapCheckResultEnum.NOT_EXIST, NoteRBitmapCheckResultEnum.valueOf(-1L));
+        assertEquals(NoteRBitmapCheckResultEnum.MARKED, NoteRBitmapCheckResultEnum.valueOf(1L));
+        assertEquals(NoteRBitmapCheckResultEnum.NOT_MARKED, NoteRBitmapCheckResultEnum.valueOf(0L));
+        assertNull(NoteRBitmapCheckResultEnum.valueOf(2L));
+        assertNull(NoteRBitmapCheckResultEnum.valueOf((Long) null));
     }
 
     @Test
