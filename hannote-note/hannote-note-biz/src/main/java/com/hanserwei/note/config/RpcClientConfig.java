@@ -1,5 +1,7 @@
 package com.hanserwei.note.config;
 
+import com.hanserwei.count.api.CountHttpApi;
+import com.hanserwei.count.api.constant.CountApiConstants;
 import com.hanserwei.id.api.DistributedIdHttpApi;
 import com.hanserwei.id.api.constant.IdApiConstants;
 import com.hanserwei.kv.api.KeyValueHttpApi;
@@ -25,5 +27,6 @@ import org.springframework.web.service.registry.ImportHttpServices;
 @ImportHttpServices(group = IdApiConstants.SERVICE_NAME, types = DistributedIdHttpApi.class)
 @ImportHttpServices(group = KvApiConstants.SERVICE_NAME, types = KeyValueHttpApi.class)
 @ImportHttpServices(group = UserApiConstants.SERVICE_NAME, types = UserHttpApi.class)
+@ImportHttpServices(group = CountApiConstants.SERVICE_NAME, types = CountHttpApi.class)
 public class RpcClientConfig {
 }

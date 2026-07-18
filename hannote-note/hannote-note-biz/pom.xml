@@ -56,6 +56,11 @@
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-user-api</artifactId>
         </dependency>
+        <!-- 计数服务契约（已发布笔记列表批量查点赞数） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-count-api</artifactId>
+        </dependency>
 
         <!-- Caffeine 本地缓存（笔记详情 L1 缓存） -->
         <dependency>
