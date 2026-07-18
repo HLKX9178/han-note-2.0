@@ -31,7 +31,8 @@ public class PathAuthorizationRules {
     private static final List<String> WHITELIST = List.of(
             "/auth/user/login",
             "/auth/verification/code/send",
-            "/user/user/profile"
+            "/user/user/profile",
+            "/note/note/published/list"
     );
 
     /**

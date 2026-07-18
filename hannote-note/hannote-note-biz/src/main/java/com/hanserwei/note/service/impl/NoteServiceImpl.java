@@ -34,6 +34,7 @@ import com.hanserwei.note.enums.NoteTypeEnum;
 import com.hanserwei.note.enums.NoteVisibleEnum;
 import com.hanserwei.note.enums.ResponseCodeEnum;
 import com.hanserwei.note.model.dto.CollectUnCollectNoteMqDTO;
+import com.hanserwei.note.model.dto.DelayDeleteNoteCacheMqDTO;
 import com.hanserwei.note.model.dto.LikeUnlikeNoteMqDTO;
 import com.hanserwei.note.model.dto.NoteOperateMqDTO;
 import com.hanserwei.note.model.vo.CollectNoteReqVO;
@@ -615,9 +616,10 @@ public class NoteServiceImpl implements NoteService {
             contentUuid = UUID.randomUUID().toString();
         }
 
-        // 6. 一致性：延迟双删第一步——先删 Redis 缓存，再更新库（配合下方延时二次删）
-        String noteDetailRedisKey = RedisKeyConstants.buildNoteDetailKey(noteId);
-        redisTemplate.delete(noteDetailRedisKey);
+        // 6. 一致性：延迟双删第一步——先删 Redis 缓存（笔记详情 + 作者已发布列表），再更新库
+        redisTemplate.delete(List.of(
+                RedisKeyConstants.buildNoteDetailKey(noteId),
+                RedisKeyConstants.buildPublishedNoteListKey(currentUserId)));
 
         // 7. 更新笔记元数据（显式 set，含 null 覆盖，切换类型时清空另一媒体字段）
         LambdaUpdateWrapper<NoteDO> updateWrapper = new LambdaUpdateWrapper<NoteDO>()
@@ -649,18 +651,9 @@ public class NoteServiceImpl implements NoteService {
         // 9. 广播 MQ：通知所有实例删除各自 L1 本地缓存
         broadcastDeleteLocalCache(noteId);
 
-        // 10. 一致性：延迟双删第二步——异步发送延时消息，约 1s 后二次删 Redis 缓存
+        // 10. 一致性：延迟双删第二步——异步发送延时消息，约 1s 后二次删 Redis 缓存（详情 + 列表）
         //     用 RocketMQ 5.x timer message（任意精度），替代 4.x 固定 18 级 delayLevel
-        noteTaskExecutor.execute(() -> {
-            try {
-                rocketMQTemplate.syncSendDelayTimeSeconds(
-                        MQConstants.TOPIC_DELAY_DELETE_NOTE_REDIS_CACHE,
-                        String.valueOf(noteId), 1);
-                log.info("==> MQ：延时删除 Redis 笔记缓存消息发送成功, noteId: {}", noteId);
-            } catch (Exception e) {
-                log.error("==> MQ：延时删除 Redis 笔记缓存消息发送失败, noteId: {}", noteId, e);
-            }
-        });
+        sendDelayDeleteNoteRedisCacheMq(noteId, currentUserId);
 
         // 11. 发送 MQ，通知搜索服务：重建笔记 ES 文档（事务提交后再发，避免消费端重查到未提交数据）
         sendNoteSyncEsMqAfterCommit(noteId, MQConstants.TAG_SYNC_ES_REBUILD);
@@ -693,9 +686,12 @@ public class NoteServiceImpl implements NoteService {
             throw new BizException(ResponseCodeEnum.NOTE_CANT_OPERATE);
         }
 
-        // 删 Redis 缓存 + 广播删各实例 L1
-        redisTemplate.delete(RedisKeyConstants.buildNoteDetailKey(noteId));
+        // 删 Redis 缓存（笔记详情 + 作者已发布列表）+ 广播删各实例 L1 + 延时二次删
+        redisTemplate.delete(List.of(
+                RedisKeyConstants.buildNoteDetailKey(noteId),
+                RedisKeyConstants.buildPublishedNoteListKey(currentUserId)));
         broadcastDeleteLocalCache(noteId);
+        sendDelayDeleteNoteRedisCacheMq(noteId, currentUserId);
 
         // 发送 MQ，通知计数服务：发布者发布笔记数 -1（能删成功说明 currentUserId 即发布者）
         sendNoteOperateMq(currentUserId, noteId, NoteOperateEnum.DELETE);
@@ -780,6 +776,32 @@ public class NoteServiceImpl implements NoteService {
         } catch (Exception e) {
             log.error("==> MQ：广播删除笔记本地缓存消息发送失败（本机 L1 已删，其它实例靠 TTL 兜底）, noteId: {}", noteId, e);
         }
+    }
+
+    /**
+     * 延迟双删第二步：异步发送延时消息，约 1s 后二次删「笔记详情缓存」+「作者已发布列表缓存」.
+     *
+     * <p>用 RocketMQ 5.x timer message（任意精度），替代 4.x 固定 18 级 delayLevel；
+     * 发送失败仅记日志，不影响已完成的写库业务（缓存靠 TTL 兜底最终一致）。
+     *
+     * @param noteId 笔记 ID
+     * @param userId 作者用户 ID
+     */
+    private void sendDelayDeleteNoteRedisCacheMq(Long noteId, Long userId) {
+        DelayDeleteNoteCacheMqDTO dto = DelayDeleteNoteCacheMqDTO.builder()
+                .noteId(noteId)
+                .userId(userId)
+                .build();
+        String payload = JsonUtils.toJsonString(dto);
+        noteTaskExecutor.execute(() -> {
+            try {
+                rocketMQTemplate.syncSendDelayTimeSeconds(
+                        MQConstants.TOPIC_DELAY_DELETE_NOTE_REDIS_CACHE, payload, 1);
+                log.info("==> MQ：延时删除 Redis 笔记缓存消息发送成功, noteId: {}, userId: {}", noteId, userId);
+            } catch (Exception e) {
+                log.error("==> MQ：延时删除 Redis 笔记缓存消息发送失败, noteId: {}, userId: {}", noteId, userId, e);
+            }
+        });
     }
 
     /**
