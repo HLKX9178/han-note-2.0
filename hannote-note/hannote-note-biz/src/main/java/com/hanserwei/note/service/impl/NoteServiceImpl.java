@@ -16,6 +16,7 @@ import com.hanserwei.note.api.dto.req.FindPublishedNoteReqDTO;
 import com.hanserwei.note.api.dto.resp.FindPublishedNoteRspDTO;
 import com.hanserwei.note.constant.MQConstants;
 import com.hanserwei.note.constant.RedisKeyConstants;
+import com.hanserwei.note.convert.NoteConvert;
 import com.hanserwei.note.domain.dataobject.NoteCollectionDO;
 import com.hanserwei.note.domain.dataobject.NoteDO;
 import com.hanserwei.note.domain.dataobject.NoteLikeDO;
@@ -37,6 +38,7 @@ import com.hanserwei.note.model.dto.CollectUnCollectNoteMqDTO;
 import com.hanserwei.note.model.dto.DelayDeleteNoteCacheMqDTO;
 import com.hanserwei.note.model.dto.LikeUnlikeNoteMqDTO;
 import com.hanserwei.note.model.dto.NoteOperateMqDTO;
+import com.hanserwei.note.model.dto.PublishNoteDTO;
 import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
@@ -65,6 +67,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.TransactionSendResult;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -443,17 +446,13 @@ public class NoteServiceImpl implements NoteService {
             throw new BizException(ResponseCodeEnum.NOTE_PUBLISH_FAIL);
         }
 
-        // 4. 正文非空则先存入 KV 服务（先存内容、再存元数据，失败可补偿删除）
+        // 4. 正文非空则生成内容 UUID（不再同步写 KV，正文改由事务消息 + KV 消费者写入 ScyllaDB）
         boolean isContentEmpty = true;
         String contentUuid = null;
         String content = publishNoteReqVO.getContent();
         if (StringUtils.isNotBlank(content)) {
             isContentEmpty = false;
             contentUuid = UUID.randomUUID().toString();
-            boolean saved = keyValueRpcService.saveNoteContent(contentUuid, content);
-            if (!saved) {
-                throw new BizException(ResponseCodeEnum.NOTE_PUBLISH_FAIL);
-            }
         }
 
         // 5. 话题名（冗余字段，避免详情反查）；提交了话题就必须真实存在
@@ -484,24 +483,43 @@ public class NoteServiceImpl implements NoteService {
                 .contentUuid(contentUuid)
                 .build();
 
-        // 7. 元数据入库；失败则补偿删除 KV 内容并显式抛异常（不吞异常）
-        try {
-            noteDOMapper.insert(noteDO);
-        } catch (Exception e) {
-            log.error("==> 笔记元数据入库失败, noteId: {}", noteId, e);
-            if (StringUtils.isNotBlank(contentUuid)) {
-                keyValueRpcService.deleteNoteContent(contentUuid);
-            }
-            throw new BizException(ResponseCodeEnum.NOTE_PUBLISH_FAIL);
+        // 7. 正文为空：无需保证与 ScyllaDB 一致，直接本地入库 + 发副作用 MQ（不发事务消息）
+        if (isContentEmpty) {
+            processPublishContentEmptyNote(creatorId, noteDO);
+            return Response.success();
         }
 
-        // 8. 发送 MQ，通知计数服务：发布者发布笔记数 +1
-        sendNoteOperateMq(creatorId, noteId, NoteOperateEnum.PUBLISH);
-
-        // 9. 发送 MQ，通知搜索服务：重建笔记 ES 文档（非事务方法，直接发）
-        sendNoteSyncEsMqAfterCommit(noteId, MQConstants.TAG_SYNC_ES_REBUILD);
+        // 8. 正文非空：发送事务消息，本地事务写元数据成功后 KV 消费者才写正文，保证跨存储一致
+        PublishNoteDTO publishNoteDTO = NoteConvert.INSTANCE.convertDO2DTO(noteDO);
+        publishNoteDTO.setContent(content);
+        Message<String> message = MessageBuilder.withPayload(JsonUtils.toJsonString(publishNoteDTO)).build();
+        TransactionSendResult transactionSendResult = rocketMQTemplate.sendMessageInTransaction(
+                MQConstants.TOPIC_PUBLISH_NOTE_TRANSACTION, message, null);
+        log.info("==> 发布笔记事务消息发送结果: {}", transactionSendResult.getLocalTransactionState());
 
         return Response.success();
+    }
+
+    /**
+     * 处理「正文为空」的笔记发布：删列表缓存 → 元数据入库 → 延迟双删 → 通知计数/搜索.
+     *
+     * <p>正文为空无需写 ScyllaDB，也就无需事务消息保证跨存储一致，直接本地落库即可。
+     *
+     * @param creatorId 发布者 ID
+     * @param noteDO    笔记元数据
+     */
+    private void processPublishContentEmptyNote(Long creatorId, NoteDO noteDO) {
+        Long noteId = noteDO.getId();
+        // 删除作者已发布列表缓存（延迟双删第一步）
+        redisTemplate.delete(RedisKeyConstants.buildPublishedNoteListKey(creatorId));
+        // 元数据入库
+        noteDOMapper.insert(noteDO);
+        // 延迟双删第二步：约 1s 后二次删列表缓存
+        sendDelayDeleteNoteRedisCacheMq(noteId, creatorId);
+        // 通知计数服务：发布数 +1
+        sendNoteOperateMq(creatorId, noteId, NoteOperateEnum.PUBLISH);
+        // 通知搜索服务：重建 ES 文档
+        sendNoteSyncEsMqAfterCommit(noteId, MQConstants.TAG_SYNC_ES_REBUILD);
     }
 
     @Override

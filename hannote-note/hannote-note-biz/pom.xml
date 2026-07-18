@@ -61,6 +61,11 @@
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-count-api</artifactId>
         </dependency>
+        <!-- MapStruct 属性映射（NoteDO ↔ PublishNoteDTO 转换） -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
 
         <!-- Caffeine 本地缓存（笔记详情 L1 缓存） -->
         <dependency>

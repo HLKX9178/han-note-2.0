@@ -32,4 +32,11 @@
         LIMIT 20
     </select>
 
+    <!-- 统计指定笔记 ID 的记录数（事务消息回查用；不限 status，只判元数据是否已入库） -->
+    <select id="selectCountByNoteId" resultType="int">
+        SELECT COUNT(1)
+        FROM t_note
+        WHERE id = #{noteId}
+    </select>
+
 </mapper>

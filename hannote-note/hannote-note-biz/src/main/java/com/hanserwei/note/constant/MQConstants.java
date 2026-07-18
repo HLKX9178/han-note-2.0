@@ -95,4 +95,12 @@ public interface MQConstants {
 
     /** Tag 标签：删除笔记 ES 文档（删除 / 转仅自己可见） */
     String TAG_SYNC_ES_DELETE = "delete";
+
+    /**
+     * Topic 主题：发布笔记事务消息（笔记服务生产 half 消息，KV 服务消费写正文）.
+     *
+     * <p>两阶段提交：本地事务写 t_note 元数据成功后 COMMIT，KV 消费者才可见并把正文写入 ScyllaDB，
+     * 保证 t_note 与 ScyllaDB 正文的最终一致；替代原「同步调 KV + 入库失败手动补偿删 KV」方案。
+     */
+    String TOPIC_PUBLISH_NOTE_TRANSACTION = "PublishNoteTransactionTopic";
 }

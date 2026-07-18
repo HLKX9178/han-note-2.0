@@ -41,4 +41,12 @@ public interface NoteDOMapper extends BaseMapper<NoteDO> {
      */
     List<NoteDO> selectPublishedNoteListByUserIdAndCursor(@Param("creatorId") Long creatorId,
                                                           @Param("cursor") Long cursor);
+
+    /**
+     * 统计指定笔记 ID 的记录数（供发布事务消息回查本地事务状态）.
+     *
+     * @param noteId 笔记 ID
+     * @return 记录数（存在返回 1，否则 0）
+     */
+    int selectCountByNoteId(@Param("noteId") Long noteId);
 }
