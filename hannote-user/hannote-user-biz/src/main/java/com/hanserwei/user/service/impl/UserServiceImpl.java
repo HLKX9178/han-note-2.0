@@ -103,6 +103,12 @@ public class UserServiceImpl implements UserService {
             .maximumSize(10000)
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
+    /** 用户主页信息本地缓存 L1（Caffeine）：热点数据，5 分钟过期（短于 Redis，缩小不一致窗口） */
+    private static final Cache<Long, FindUserProfileRspVO> PROFILE_LOCAL_CACHE = Caffeine.newBuilder()
+            .initialCapacity(10000)
+            .maximumSize(10000)
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .build();
 
     @Override
     public Response<?> updateUserInfo(UpdateUserInfoReqVO updateUserInfoReqVO) {
@@ -539,18 +545,31 @@ public class UserServiceImpl implements UserService {
     @Override
     public Response<FindUserProfileRspVO> findUserProfile(FindUserProfileReqVO findUserProfileReqVO) {
         Long userId = findUserProfileReqVO.getUserId();
-        // 入参 userId 为空则查当前登录用户
         if (Objects.isNull(userId)) {
             userId = LoginUserContextHolder.getUserId();
         }
 
-        // 1. 查询数据库用户信息
+        // 1. 优先查本地缓存
+        FindUserProfileRspVO localCache = PROFILE_LOCAL_CACHE.getIfPresent(userId);
+        if (Objects.nonNull(localCache)) {
+            log.info("==> 用户主页信息命中本地缓存, userId: {}", userId);
+            return Response.success(localCache);
+        }
+
+        // 2. 再查 Redis 缓存
+        String profileRedisKey = RedisKeyConstants.buildUserProfileKey(userId);
+        Object profileJson = redisTemplate.opsForValue().get(profileRedisKey);
+        if (Objects.nonNull(profileJson)) {
+            FindUserProfileRspVO cached = JsonUtils.parseObject(String.valueOf(profileJson), FindUserProfileRspVO.class);
+            syncUserProfile2LocalCache(userId, cached);
+            return Response.success(cached);
+        }
+
+        // 3. 回源数据库
         UserDO userDO = userDOMapper.selectById(userId);
         if (Objects.isNull(userDO)) {
             throw new BizException(ResponseCodeEnum.USER_NOT_FOUND);
         }
-
-        // 2. 构建基础主页信息（含年龄计算）
         FindUserProfileRspVO vo = FindUserProfileRspVO.builder()
                 .userId(userDO.getId())
                 .avatar(userDO.getAvatar())
@@ -561,10 +580,37 @@ public class UserServiceImpl implements UserService {
                 .age(Objects.isNull(userDO.getBirthday()) ? 0 : DateUtils.calculateAge(userDO.getBirthday()))
                 .build();
 
-        // 3. RPC 调用计数服务，聚合并格式化计数
+        // 4. RPC 聚合计数
         rpcCountServiceAndSetData(userId, vo);
 
+        // 5. 异步回写两级缓存
+        syncUserProfile2Redis(profileRedisKey, vo);
+        syncUserProfile2LocalCache(userId, vo);
+
         return Response.success(vo);
+    }
+
+    /**
+     * 异步回写用户主页信息到 Redis（随机 TTL，2 小时内）.
+     *
+     * @param profileRedisKey Redis Key
+     * @param vo              主页信息
+     */
+    private void syncUserProfile2Redis(String profileRedisKey, FindUserProfileRspVO vo) {
+        cacheWriteExecutor.execute(() -> {
+            long expireSeconds = 60L * 60 + ThreadLocalRandom.current().nextInt(60 * 60);
+            redisTemplate.opsForValue().set(profileRedisKey, JsonUtils.toJsonString(vo), expireSeconds, TimeUnit.SECONDS);
+        });
+    }
+
+    /**
+     * 异步回写用户主页信息到本地缓存.
+     *
+     * @param userId 用户 ID
+     * @param vo     主页信息
+     */
+    private void syncUserProfile2LocalCache(Long userId, FindUserProfileRspVO vo) {
+        cacheWriteExecutor.execute(() -> PROFILE_LOCAL_CACHE.put(userId, vo));
     }
 
     /**

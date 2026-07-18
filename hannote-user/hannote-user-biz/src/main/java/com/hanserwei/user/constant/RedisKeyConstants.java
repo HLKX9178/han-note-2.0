@@ -59,4 +59,19 @@ public final class RedisKeyConstants {
     public static String buildUserInfoKey(Long userId) {
         return USER_INFO_KEY_PREFIX + userId;
     }
+
+    /**
+     * 用户主页信息 Key 前缀
+     */
+    public static final String USER_PROFILE_KEY_PREFIX = "hannote:user:profile:";
+
+    /**
+     * 构建用户主页信息 Key.
+     *
+     * @param userId 用户 ID
+     * @return hannote:user:profile:{userId}
+     */
+    public static String buildUserProfileKey(Long userId) {
+        return USER_PROFILE_KEY_PREFIX + userId;
+    }
 }
