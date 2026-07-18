@@ -7,6 +7,8 @@ import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
+import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedReqVO;
+import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedRspVO;
 import com.hanserwei.note.model.vo.LikeNoteReqVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
 import com.hanserwei.note.model.vo.TopNoteReqVO;
@@ -120,4 +122,13 @@ public interface NoteService {
      * @return 操作结果
      */
     Response<?> unCollectNote(UnCollectNoteReqVO unCollectNoteReqVO);
+
+    /**
+     * 获取当前登录用户对某笔记的「是否点赞、是否收藏」数据.
+     *
+     * @param findNoteIsLikedAndCollectedReqVO 入参（笔记 ID）
+     * @return 点赞 / 收藏标识；未登录时均为 false
+     */
+    Response<FindNoteIsLikedAndCollectedRspVO> isLikedAndCollectedData(
+            FindNoteIsLikedAndCollectedReqVO findNoteIsLikedAndCollectedReqVO);
 }

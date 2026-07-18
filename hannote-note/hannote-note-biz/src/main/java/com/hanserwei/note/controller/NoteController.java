@@ -8,6 +8,8 @@ import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
+import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedReqVO;
+import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedRspVO;
 import com.hanserwei.note.model.vo.LikeNoteReqVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
 import com.hanserwei.note.model.vo.TopNoteReqVO;
@@ -168,5 +170,18 @@ public class NoteController {
     @ApiOperationLog(description = "取消收藏笔记")
     public Response<?> unCollectNote(@Validated @RequestBody UnCollectNoteReqVO unCollectNoteReqVO) {
         return noteService.unCollectNote(unCollectNoteReqVO);
+    }
+
+    /**
+     * 获取当前登录用户对某笔记的「是否点赞、是否收藏」数据.
+     *
+     * @param findNoteIsLikedAndCollectedReqVO 入参（笔记 ID）
+     * @return 点赞 / 收藏标识
+     */
+    @PostMapping("/isLikedAndCollectedData")
+    @ApiOperationLog(description = "获取当前用户是否点赞、收藏数据")
+    public Response<FindNoteIsLikedAndCollectedRspVO> isLikedAndCollectedData(
+            @Validated @RequestBody FindNoteIsLikedAndCollectedReqVO findNoteIsLikedAndCollectedReqVO) {
+        return noteService.isLikedAndCollectedData(findNoteIsLikedAndCollectedReqVO);
     }
 }

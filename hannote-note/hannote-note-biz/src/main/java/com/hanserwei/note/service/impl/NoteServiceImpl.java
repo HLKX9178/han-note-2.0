@@ -38,6 +38,8 @@ import com.hanserwei.note.model.vo.CollectNoteReqVO;
 import com.hanserwei.note.model.vo.DeleteNoteReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
+import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedReqVO;
+import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedRspVO;
 import com.hanserwei.note.model.vo.LikeNoteReqVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
 import com.hanserwei.note.model.vo.TopNoteReqVO;
@@ -131,6 +133,7 @@ public class NoteServiceImpl implements NoteService {
     private static final DefaultRedisScript<Long> RBITMAP_BATCH_ADD_AND_EXPIRE_SCRIPT = buildLongScript("/lua/rbitmap_batch_add_and_expire.lua");
     private static final DefaultRedisScript<Long> ZSET_CHECK_AND_UPDATE_SCRIPT = buildLongScript("/lua/zset_check_and_update.lua");
     private static final DefaultRedisScript<Long> ZSET_BATCH_ADD_AND_EXPIRE_SCRIPT = buildLongScript("/lua/zset_batch_add_and_expire.lua");
+    private static final DefaultRedisScript<Long> RBITMAP_ONLY_CHECK_SCRIPT = buildLongScript("/lua/rbitmap_only_check.lua");
 
     private static DefaultRedisScript<Long> buildLongScript(String path) {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
@@ -1039,6 +1042,87 @@ public class NoteServiceImpl implements NoteService {
         sendCollectUnCollectMq(userId, noteId, creatorId, CollectUnCollectNoteTypeEnum.UN_COLLECT, LocalDateTime.now());
 
         return Response.success();
+    }
+
+    @Override
+    public Response<FindNoteIsLikedAndCollectedRspVO> isLikedAndCollectedData(
+            FindNoteIsLikedAndCollectedReqVO findNoteIsLikedAndCollectedReqVO) {
+        Long noteId = findNoteIsLikedAndCollectedReqVO.getNoteId();
+        Long currUserId = LoginUserContextHolder.getUserId();
+
+        // 默认未点赞、未收藏（未登录用户直接返回 false）
+        boolean isLiked = false;
+        boolean isCollected = false;
+
+        if (Objects.nonNull(currUserId)) {
+            isLiked = checkNoteIsLiked(noteId, currUserId);
+            isCollected = checkNoteIsCollected(noteId, currUserId);
+        }
+
+        return Response.success(FindNoteIsLikedAndCollectedRspVO.builder()
+                .noteId(noteId)
+                .isLiked(isLiked)
+                .isCollected(isCollected)
+                .build());
+    }
+
+    /**
+     * 校验当前用户是否点赞了目标笔记（Roaring 仅查；位图缺失则回源 DB 并异步重建）.
+     *
+     * @param noteId     笔记 ID
+     * @param currUserId 当前登录用户 ID
+     * @return 是否已点赞
+     */
+    private boolean checkNoteIsLiked(Long noteId, Long currUserId) {
+        String rbitmapKey = RedisKeyConstants.buildRBitmapNoteLikeKey(currUserId);
+        Long result = stringRedisTemplate.execute(RBITMAP_ONLY_CHECK_SCRIPT,
+                Collections.singletonList(rbitmapKey), String.valueOf(noteId));
+        NoteRBitmapCheckResultEnum checkEnum = NoteRBitmapCheckResultEnum.valueOf(result);
+        if (Objects.isNull(checkEnum)) {
+            return false;
+        }
+        return switch (checkEnum) {
+            case MARKED -> true;
+            case NOT_MARKED -> false;
+            // 位图缺失：回源 DB，已点赞则异步重建位图
+            case NOT_EXIST -> {
+                boolean liked = isNoteLikedInDb(currUserId, noteId);
+                if (liked) {
+                    noteTaskExecutor.execute(() ->
+                            batchAddNoteLike2RBitmapAndExpire(currUserId, randomRBitmapExpireSeconds(), rbitmapKey));
+                }
+                yield liked;
+            }
+        };
+    }
+
+    /**
+     * 校验当前用户是否收藏了目标笔记（Roaring 仅查；位图缺失则回源 DB 并异步重建）.
+     *
+     * @param noteId     笔记 ID
+     * @param currUserId 当前登录用户 ID
+     * @return 是否已收藏
+     */
+    private boolean checkNoteIsCollected(Long noteId, Long currUserId) {
+        String rbitmapKey = RedisKeyConstants.buildRBitmapNoteCollectKey(currUserId);
+        Long result = stringRedisTemplate.execute(RBITMAP_ONLY_CHECK_SCRIPT,
+                Collections.singletonList(rbitmapKey), String.valueOf(noteId));
+        NoteRBitmapCheckResultEnum checkEnum = NoteRBitmapCheckResultEnum.valueOf(result);
+        if (Objects.isNull(checkEnum)) {
+            return false;
+        }
+        return switch (checkEnum) {
+            case MARKED -> true;
+            case NOT_MARKED -> false;
+            case NOT_EXIST -> {
+                boolean collected = isNoteCollectedInDb(currUserId, noteId);
+                if (collected) {
+                    noteTaskExecutor.execute(() ->
+                            batchAddNoteCollect2RBitmapAndExpire(currUserId, randomRBitmapExpireSeconds(), rbitmapKey));
+                }
+                yield collected;
+            }
+        };
     }
 
     /**
