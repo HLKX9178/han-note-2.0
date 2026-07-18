@@ -596,6 +596,7 @@ public class UserServiceImpl implements UserService {
             FindUserProfileRspVO localCache = PROFILE_LOCAL_CACHE.getIfPresent(userId);
             if (Objects.nonNull(localCache)) {
                 log.info("==> 用户主页信息命中本地缓存, userId: {}", userId);
+                authorGetActualCountData(userId, localCache);
                 return Response.success(localCache);
             }
         }
@@ -606,6 +607,7 @@ public class UserServiceImpl implements UserService {
         if (Objects.nonNull(profileJson)) {
             FindUserProfileRspVO cached = JsonUtils.parseObject(String.valueOf(profileJson), FindUserProfileRspVO.class);
             syncUserProfile2LocalCache(userId, cached);
+            authorGetActualCountData(userId, cached);
             return Response.success(cached);
         }
 
@@ -674,6 +676,20 @@ public class UserServiceImpl implements UserService {
             vo.setLikeTotal(NumberUtils.formatNumberString(likeTotal));
             vo.setCollectTotal(NumberUtils.formatNumberString(collectTotal));
             vo.setLikeAndCollectTotal(NumberUtils.formatNumberString(likeTotal + collectTotal));
+        }
+    }
+
+    /**
+     * 博主本人查看时补拉实时计数（昵称/头像仍用缓存，仅计数保实时）.
+     *
+     * <p>计数变化频率高、缓存易过时，本人查看自己主页时对计数单独 RPC 覆盖。
+     *
+     * @param userId 被查看用户 ID
+     * @param vo     主页信息（原地覆盖计数字段）
+     */
+    private void authorGetActualCountData(Long userId, FindUserProfileRspVO vo) {
+        if (Objects.equals(userId, LoginUserContextHolder.getUserId())) {
+            rpcCountServiceAndSetData(userId, vo);
         }
     }
 }

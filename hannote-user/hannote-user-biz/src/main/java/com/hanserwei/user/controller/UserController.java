@@ -48,7 +48,7 @@ public class UserController {
      * @return 统一响应
      */
     @PostMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Response<?> updateUserInfo(UpdateUserInfoReqVO updateUserInfoReqVO) {
+    public Response<?> updateUserInfo(@Validated UpdateUserInfoReqVO updateUserInfoReqVO) {
         return userService.updateUserInfo(updateUserInfoReqVO);
     }
 

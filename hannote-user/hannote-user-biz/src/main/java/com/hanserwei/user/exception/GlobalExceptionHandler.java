@@ -40,17 +40,24 @@ public class GlobalExceptionHandler {
         return Response.fail(ResponseCodeEnum.SYSTEM_ERROR.getErrorCode(), e.getMessage());
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ExceptionHandler({MethodArgumentNotValidException.class, org.springframework.validation.BindException.class})
     @ResponseBody
-    public Response<Object> handleMethodArgumentNotValidException(HttpServletRequest request,
-                                                                  MethodArgumentNotValidException e) {
+    public Response<Object> handleControllerException(HttpServletRequest request, Throwable e) {
+        BindingResult bindingResult = null;
+        if (e instanceof MethodArgumentNotValidException ex) {
+            bindingResult = ex.getBindingResult();
+        } else if (e instanceof org.springframework.validation.BindException ex) {
+            bindingResult = ex.getBindingResult();
+        }
+
         StringBuilder sb = new StringBuilder();
-        BindingResult bindingResult = e.getBindingResult();
-        bindingResult.getFieldErrors().forEach(error ->
-                sb.append(error.getField())
-                        .append(' ')
-                        .append(error.getDefaultMessage())
-                        .append("; "));
+        if (bindingResult != null) {
+            bindingResult.getFieldErrors().forEach(error ->
+                    sb.append(error.getField())
+                            .append(' ')
+                            .append(error.getDefaultMessage())
+                            .append("; "));
+        }
         String errorMessage = sb.toString();
 
         log.warn("{} request param invalid: {}", request.getRequestURI(), errorMessage);
