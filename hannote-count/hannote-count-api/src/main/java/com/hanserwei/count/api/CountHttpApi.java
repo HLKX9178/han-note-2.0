@@ -1,7 +1,9 @@
 package com.hanserwei.count.api;
 
 import com.hanserwei.count.api.dto.req.FindNoteCountReqDTO;
+import com.hanserwei.count.api.dto.req.FindUserCountReqDTO;
 import com.hanserwei.count.api.dto.resp.FindNoteCountRspDTO;
+import com.hanserwei.count.api.dto.resp.FindUserCountRspDTO;
 import com.hanserwei.framework.common.response.Response;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.service.annotation.HttpExchange;
@@ -28,4 +30,13 @@ public interface CountHttpApi {
      */
     @PostExchange(PREFIX + "/note/findById")
     Response<FindNoteCountRspDTO> findNoteCountById(@RequestBody FindNoteCountReqDTO request);
+
+    /**
+     * 查询用户维度计数.
+     *
+     * @param request 查询入参（用户 ID）
+     * @return 用户计数
+     */
+    @PostExchange(PREFIX + "/user/data")
+    Response<FindUserCountRspDTO> findUserCount(@RequestBody FindUserCountReqDTO request);
 }
