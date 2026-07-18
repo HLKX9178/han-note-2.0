@@ -26,6 +26,11 @@
             <groupId>com.hanserwei</groupId>
             <artifactId>hannote-distributed-id-generator-api</artifactId>
         </dependency>
+        <!-- 计数服务 API（RPC 聚合用户主页计数） -->
+        <dependency>
+            <groupId>com.hanserwei</groupId>
+            <artifactId>hannote-count-api</artifactId>
+        </dependency>
         <!-- 本服务对外契约（DTO / HTTP Interface），biz 侧需引用其中的 DTO -->
         <dependency>
             <groupId>com.hanserwei</groupId>

@@ -9,7 +9,10 @@ import com.hanserwei.framework.common.enums.DeletedEnum;
 import com.hanserwei.framework.common.enums.StatusEnum;
 import com.hanserwei.framework.common.exception.BizException;
 import com.hanserwei.framework.common.response.Response;
+import com.hanserwei.count.api.dto.resp.FindUserCountRspDTO;
+import com.hanserwei.framework.common.util.DateUtils;
 import com.hanserwei.framework.common.util.JsonUtils;
+import com.hanserwei.framework.common.util.NumberUtils;
 import com.hanserwei.framework.common.util.ParamUtils;
 import com.hanserwei.user.api.dto.req.FindUserByIdReqDTO;
 import com.hanserwei.user.api.dto.req.FindUserByPhoneReqDTO;
@@ -29,7 +32,10 @@ import com.hanserwei.user.domain.mapper.UserDOMapper;
 import com.hanserwei.user.domain.mapper.UserRoleDOMapper;
 import com.hanserwei.user.enums.ResponseCodeEnum;
 import com.hanserwei.user.enums.SexEnum;
+import com.hanserwei.user.model.vo.FindUserProfileReqVO;
+import com.hanserwei.user.model.vo.FindUserProfileRspVO;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
+import com.hanserwei.user.rpc.CountRpcService;
 import com.hanserwei.user.rpc.DistributedIdRpcService;
 import com.hanserwei.user.rpc.OssRpcService;
 import com.hanserwei.user.service.UserService;
@@ -82,6 +88,7 @@ public class UserServiceImpl implements UserService {
     private final RoleDOMapper roleDOMapper;
     private final OssRpcService ossRpcService;
     private final DistributedIdRpcService distributedIdRpcService;
+    private final CountRpcService countRpcService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final TransactionTemplate transactionTemplate;
     private final RocketMQTemplate rocketMQTemplate;
@@ -527,5 +534,56 @@ public class UserServiceImpl implements UserService {
         // 回填缓存
         redisTemplate.opsForValue().set(cacheKey, JsonUtils.toJsonString(roleKeys));
         return roleKeys;
+    }
+
+    @Override
+    public Response<FindUserProfileRspVO> findUserProfile(FindUserProfileReqVO findUserProfileReqVO) {
+        Long userId = findUserProfileReqVO.getUserId();
+        // 入参 userId 为空则查当前登录用户
+        if (Objects.isNull(userId)) {
+            userId = LoginUserContextHolder.getUserId();
+        }
+
+        // 1. 查询数据库用户信息
+        UserDO userDO = userDOMapper.selectById(userId);
+        if (Objects.isNull(userDO)) {
+            throw new BizException(ResponseCodeEnum.USER_NOT_FOUND);
+        }
+
+        // 2. 构建基础主页信息（含年龄计算）
+        FindUserProfileRspVO vo = FindUserProfileRspVO.builder()
+                .userId(userDO.getId())
+                .avatar(userDO.getAvatar())
+                .nickname(userDO.getNickname())
+                .hannoteId(userDO.getHannoteId())
+                .sex(userDO.getSex())
+                .introduction(userDO.getIntroduction())
+                .age(Objects.isNull(userDO.getBirthday()) ? 0 : DateUtils.calculateAge(userDO.getBirthday()))
+                .build();
+
+        // 3. RPC 调用计数服务，聚合并格式化计数
+        rpcCountServiceAndSetData(userId, vo);
+
+        return Response.success(vo);
+    }
+
+    /**
+     * RPC 调用计数服务，将用户维度计数格式化后设置到主页 VO.
+     *
+     * @param userId 用户 ID
+     * @param vo     主页信息返参（原地填充计数字段）
+     */
+    private void rpcCountServiceAndSetData(Long userId, FindUserProfileRspVO vo) {
+        FindUserCountRspDTO count = countRpcService.findUserCountById(userId);
+        if (Objects.nonNull(count)) {
+            long likeTotal = Objects.isNull(count.getLikeTotal()) ? 0 : count.getLikeTotal();
+            long collectTotal = Objects.isNull(count.getCollectTotal()) ? 0 : count.getCollectTotal();
+            vo.setFansTotal(NumberUtils.formatNumberString(Objects.isNull(count.getFansTotal()) ? 0 : count.getFansTotal()));
+            vo.setFollowingTotal(NumberUtils.formatNumberString(Objects.isNull(count.getFollowingTotal()) ? 0 : count.getFollowingTotal()));
+            vo.setNoteTotal(NumberUtils.formatNumberString(Objects.isNull(count.getNoteTotal()) ? 0 : count.getNoteTotal()));
+            vo.setLikeTotal(NumberUtils.formatNumberString(likeTotal));
+            vo.setCollectTotal(NumberUtils.formatNumberString(collectTotal));
+            vo.setLikeAndCollectTotal(NumberUtils.formatNumberString(likeTotal + collectTotal));
+        }
     }
 }

@@ -8,6 +8,8 @@ import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
+import com.hanserwei.user.model.vo.FindUserProfileReqVO;
+import com.hanserwei.user.model.vo.FindUserProfileRspVO;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
 
 import java.util.List;
@@ -70,4 +72,12 @@ public interface UserService {
      * @return 用户信息列表
      */
     Response<List<FindUserByIdRspDTO>> findByIds(FindUsersByIdsReqDTO findUsersByIdsReqDTO);
+
+    /**
+     * 获取用户主页信息（昵称/头像/年龄/简介 + 关注/粉丝/获赞获藏等计数）.
+     *
+     * @param findUserProfileReqVO 入参（userId 可空，空则查当前登录用户）
+     * @return 主页信息
+     */
+    Response<FindUserProfileRspVO> findUserProfile(FindUserProfileReqVO findUserProfileReqVO);
 }

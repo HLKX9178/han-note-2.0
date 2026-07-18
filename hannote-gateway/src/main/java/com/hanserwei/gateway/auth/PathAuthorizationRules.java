@@ -30,7 +30,8 @@ public class PathAuthorizationRules {
     /** 无需登录即可访问的路径 */
     private static final List<String> WHITELIST = List.of(
             "/auth/user/login",
-            "/auth/verification/code/send"
+            "/auth/verification/code/send",
+            "/user/user/profile"
     );
 
     /**

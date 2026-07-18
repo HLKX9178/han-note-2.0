@@ -9,6 +9,8 @@ import com.hanserwei.user.api.dto.req.RegisterUserReqDTO;
 import com.hanserwei.user.api.dto.req.UpdateUserPasswordReqDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByIdRspDTO;
 import com.hanserwei.user.api.dto.resp.FindUserByPhoneRspDTO;
+import com.hanserwei.user.model.vo.FindUserProfileReqVO;
+import com.hanserwei.user.model.vo.FindUserProfileRspVO;
 import com.hanserwei.user.model.vo.UpdateUserInfoReqVO;
 import com.hanserwei.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,18 @@ public class UserController {
     @PostMapping(value = "/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Response<?> updateUserInfo(UpdateUserInfoReqVO updateUserInfoReqVO) {
         return userService.updateUserInfo(updateUserInfoReqVO);
+    }
+
+    /**
+     * 获取用户主页信息（经网关，白名单放行，匿名可查看他人主页）.
+     *
+     * @param findUserProfileReqVO 入参（userId 可空）
+     * @return 主页信息
+     */
+    @PostMapping("/profile")
+    @ApiOperationLog(description = "获取用户主页信息")
+    public Response<FindUserProfileRspVO> findUserProfile(@Validated @RequestBody FindUserProfileReqVO findUserProfileReqVO) {
+        return userService.findUserProfile(findUserProfileReqVO);
     }
 
     // ===================================== 对其他服务提供的接口（仅内网 RPC） =====================================
