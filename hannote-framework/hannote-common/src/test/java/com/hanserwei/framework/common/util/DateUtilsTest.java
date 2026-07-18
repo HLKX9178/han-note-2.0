@@ -2,6 +2,7 @@ package com.hanserwei.framework.common.util;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
@@ -59,5 +60,19 @@ class DateUtilsTest {
     void formatRelativeTime_pastYearShowsFullDate() {
         LocalDateTime old = LocalDateTime.of(2023, 12, 1, 8, 0, 0);
         assertThat(DateUtils.formatRelativeTime(old)).isEqualTo("2023-12-01");
+    }
+
+    @Test
+    void calculateAge_shouldReturnFullYears() {
+        // 20 年前的今天出生 → 20 岁
+        LocalDate birth = LocalDate.now().minusYears(20);
+        assertThat(DateUtils.calculateAge(birth)).isEqualTo(20);
+    }
+
+    @Test
+    void calculateAge_shouldNotCountBirthdayNotYetReached() {
+        // 20 年前 + 明天生日（今年还没到）→ 19 岁
+        LocalDate birth = LocalDate.now().minusYears(20).plusDays(1);
+        assertThat(DateUtils.calculateAge(birth)).isEqualTo(19);
     }
 }

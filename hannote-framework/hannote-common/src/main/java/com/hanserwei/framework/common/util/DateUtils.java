@@ -2,7 +2,9 @@ package com.hanserwei.framework.common.util;
 
 import com.hanserwei.framework.common.constant.DateConstants;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -102,5 +104,17 @@ public final class DateUtils {
             return dateTime.format(FMT_M_D);
         }
         return dateTime.format(FMT_Y_M_D);
+    }
+
+    /**
+     * 根据出生日期计算周岁年龄.
+     *
+     * <p>以 {@link LocalDate#now()} 为基准，取完整年份数（当年生日未到则不计入）。
+     *
+     * @param birthDate 出生日期，不可为 {@code null}
+     * @return 周岁年龄
+     */
+    public static int calculateAge(LocalDate birthDate) {
+        return Period.between(birthDate, LocalDate.now()).getYears();
     }
 }
