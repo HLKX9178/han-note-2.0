@@ -1,6 +1,7 @@
 ### hannote 用户服务 接口测试（IntelliJ HTTP Client）
 # 使用方式：
-#   - 环境 gateway（经网关 8000，需登录）：测试 /user/update 资料修改（对外接口）
+#   - 环境 gateway（经网关 8000，需登录）：测试 /user/update 资料修改（对外接口，带 JWT）
+#     以及 /user/profile 主页信息查询（网关白名单放行，匿名可查看他人主页）
 #   - 环境 user-direct（直连用户服务 8082）：测试 register / findByPhone / password/update
 #     这三个接口为「服务间 RPC」接口，正常由认证服务调用、不经网关；直连时手动补 userId 头
 #
@@ -8,13 +9,18 @@
 #   {{userHost}}     gateway=http://localhost:8000  user-direct=http://localhost:8082
 #   {{userBasePath}} gateway=/user                  user-direct=""
 #   {{token}}        由 hannote-auth.http 登录接口写入的全局变量（仅 /user/update 需要）
-#   {{userId}}       user-direct 环境下模拟网关透传的用户 ID
+#   {{userId}}       gateway 环境：/user/update 须等于登录用户本人、/user/profile 为待查主页用户 ID
+#                    user-direct 环境下模拟网关透传的用户 ID
 
 ### 1. 修改用户信息（经网关，带 JWT，表单 + 头像图片）—— 环境 gateway
 POST {{userHost}}{{userBasePath}}/user/update
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=WebAppBoundary
 
+--WebAppBoundary
+Content-Disposition: form-data; name="userId"
+
+{{userId}}
 --WebAppBoundary
 Content-Disposition: form-data; name="nickname"
 
@@ -46,6 +52,25 @@ Content-Disposition: form-data; name="nickname"
 > {%
     client.test("未授权被拦截", function() {
         client.assert(response.status === 401, "状态码非 401");
+    });
+%}
+
+### 2.5 获取用户主页信息（经网关，白名单放行，匿名可查看他人主页）—— 环境 gateway
+# 网关白名单路径 /user/user/profile，无需 JWT 即可访问；userId 为空则查当前登录用户
+# 主页数据两级缓存（Redis + Caffeine）+ 更新接口延迟双删保证博主本人实时性
+POST {{userHost}}{{userBasePath}}/user/profile
+Content-Type: application/json
+
+{
+  "userId": {{userId}}
+}
+
+> {%
+    client.test("查询用户主页成功", function() {
+        client.assert(response.status === 200, "状态码非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data && response.body.data.userId != null, "未返回用户主页信息");
+        client.assert(response.body.data.hasOwnProperty("followingTotal"), "返参缺 followingTotal 字段");
     });
 %}
 

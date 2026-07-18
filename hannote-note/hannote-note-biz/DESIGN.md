@@ -28,7 +28,7 @@ hannote-note/
         ├── constant/
         │   ├── MQConstants.java             # RocketMQ Topic / Tag / Group
         │   └── RedisKeyConstants.java       # Redis Key 常量
-        ├── controller/NoteController.java   # 11 个 POST 端点
+        ├── controller/NoteController.java   # 12 个 POST 端点
         ├── consumer/
         │   ├── DeleteNoteLocalCacheConsumer.java        # 广播删 L1
         │   ├── DelayDeleteNoteRedisCacheConsumer.java   # 延时二次删 Redis
@@ -41,7 +41,7 @@ hannote-note/
         │   ├── ResponseCodeEnum.java        # NOTE-xxxxx 错误码
         │   ├── NoteTypeEnum / NoteStatusEnum / NoteVisibleEnum
         │   ├── LikeUnlikeNoteTypeEnum / CollectUnCollectNoteTypeEnum
-        │   ├── NoteBloomAddResultEnum / NoteBloomCheckResultEnum
+        │   ├── NoteRBitmapAddResultEnum / NoteRBitmapCheckResultEnum
         │   └── NoteOperateEnum
         ├── exception/GlobalExceptionHandler.java
         ├── model/
@@ -83,13 +83,14 @@ hannote-note/
 | 4 | POST | `/note/delete` | 网关暴露（JWT） | `deleteNote` | 软删除（status=2） |
 | 5 | POST | `/note/visible/onlyme` | 网关暴露（JWT） | `visibleOnlyMe` | 设为仅自己可见 |
 | 6 | POST | `/note/top` | 网关暴露（JWT） | `topNote` | 置顶/取消置顶 |
-| 7 | POST | `/note/like` | 网关暴露（JWT） | `likeNote` | 点赞（布隆 + ZSet + DB） |
+| 7 | POST | `/note/like` | 网关暴露（JWT） | `likeNote` | 点赞（Roaring Bitmap R64 + ZSet + DB） |
 | 8 | POST | `/note/unlike` | 网关暴露（JWT） | `unlikeNote` | 取消点赞 |
 | 9 | POST | `/note/collect` | 网关暴露（JWT） | `collectNote` | 收藏 |
 | 10 | POST | `/note/uncollect` | 网关暴露（JWT） | `unCollectNote` | 取消收藏 |
-| 11 | POST | `/note/findPublishedById` | 内网 RPC | `findPublishedById` | 校验笔记已发布（供 comment/search 调用） |
+| 11 | POST | `/note/isLikedAndCollectedData` | 网关暴露（JWT，未登录返回默认 false） | `isLikedAndCollectedData` | 查询当前用户对某笔记的点赞/收藏状态 |
+| 12 | POST | `/note/findPublishedById` | 内网 RPC | `findPublishedById` | 校验笔记已发布（供 comment/search 调用） |
 
-> 网关路由：`/note/**` → `hannote-note`，`StripPrefix=1`。除 `findPublishedById` 外，其余 10 个接口均经网关，需携带 JWT；`userId` 由网关透传到 `userId` 请求头，下游 `HeaderUserId2ContextFilter` 写入 `LoginUserContextHolder`。
+> 网关路由：`/note/**` → `hannote-note`，`StripPrefix=1`。除 `findPublishedById` 外，其余 11 个接口均经网关，需携带 JWT；`userId` 由网关透传到 `userId` 请求头，下游 `HeaderUserId2ContextFilter` 写入 `LoginUserContextHolder`。
 
 ---
 
@@ -385,7 +386,7 @@ NoteController.topNote
 - 不发 MQ（不触发 ES 重建、不影响计数）。
 - 仅缓存失效。
 
-### 3.7 `POST /note/like` — 点赞（布隆 + ZSet + DB 三级判重）
+### 3.7 `POST /note/like` — 点赞（Roaring Bitmap 精确判重 + ZSet 最近列表 + DB 兜底）
 
 **请求**：`LikeNoteReqVO`（`noteId`）
 
@@ -396,27 +397,23 @@ NoteController.topNote
 NoteController.likeNote
   └─ NoteServiceImpl.likeNote
        ├─ checkNoteExistAndGetCreatorId(noteId)                   → L1→L2→DB，DB miss 抛 NOTE-20002
-       ├─ bloomKey=hannote:note:bloom:like:{userId}
+       ├─ rbitmapKey=hannote:note:rbitmap:like:{userId}
        │  zsetKey=hannote:note:zset:like:{userId}
-       ├─ stringRedisTemplate.execute(BLOOM_CHECK_AND_ADD_SCRIPT, [bloomKey], noteId)
-       │    ├─ -1 NOT_EXIST：DB 查询 isNoteLikedInDb
-       │    │    ├─ true  → batchAddNoteLike2BloomAndExpire → 抛 NOTE-20008
-       │    │    └─ false → BLOOM_ADD_AND_EXPIRE_SCRIPT 写入
-       │    ├─ 1 ALREADY：ZSET score 校验
-       │    │    ├─ 命中 → 抛 NOTE-20008
-       │    │    └─ 未命中 → isNoteLikedInDb
-       │    │         ├─ true  → asyncInitNoteLikeZSet → 抛 NOTE-20008
-       │    │         └─ false → 视为布隆误判，继续
-       │    └─ 0 SUCCESS：继续
-       ├─ ZSET_CHECK_AND_UPDATE_SCRIPT（max=100）
+       ├─ stringRedisTemplate.execute(RBITMAP_CHECK_AND_ADD_SCRIPT, [rbitmapKey], noteId)
+       │    ├─ -1 NOT_EXIST（位图未初始化/已过期）：DB 查询 isNoteLikedInDb
+       │    │    ├─ true  → 异步 batchAddNoteLike2RBitmapAndExpire（全量回源重建位图）→ 抛 NOTE-20008
+       │    │    └─ false → 先全量回源历史点赞灌入位图，再 RBITMAP_ADD_AND_EXPIRE_SCRIPT 置位当前笔记
+       │    ├─ 1 ALREADY（R64.GETBIT 精确命中已点赞，无需二次校验）：直接抛 NOTE-20008
+       │    └─ 0 SUCCESS（置位成功，确认未点赞）：继续
+       ├─ ZSET_CHECK_AND_UPDATE_SCRIPT（max=100，仅维护「最近点赞列表」，不参与判重）
        │    └─ -1 NOT_EXIST → initNoteLikeZSetAndAddCurrent（DB 回源最近 100 条）
        └─ sendLikeUnlikeMq(LIKE)                                  → asyncSendOrderly
              Topic: LikeUnlikeTopic:Like, hashKey=userId
 ```
 
 **要点**：
-- **三级判重**：布隆（高吞吐判「已存在」）→ ZSET（最近 100 条热数据）→ DB（最终裁决）。
-- **布隆不支持删除**，故取消点赞走 `BLOOM_EXIST_SCRIPT` 只查询不移除；对布隆「已标记」的笔记，取消操作**幂等放行**，由下游 SQL `WHERE status <> EXCLUDED.status` 兜底。
+- **Roaring Bitmap 精确判重**：`R64.GETBIT` 是精确位测试，不像布隆过滤器存在假阳性，命中「已置位」即可直接判定已点赞，**无需 ZSet/DB 二次校验**；仅当位图本身缺失（未初始化或已过期）时才回源 DB 判定真实状态，并异步全量重建位图。
+- **ZSet 角色降级为「最近列表」**：`hannote:note:zset:like:{userId}`（上限 100）仅用于维护最近点赞笔记的展示列表，**不再参与点赞判重**（区别于旧布隆方案里 ZSet 作为判重的第二级）。
 - **顺序 MQ**：`hashKey=userId` 保证同一用户的事件顺序到达消费端，避免并发导致 `(userId,noteId)` 最终状态错乱。
 
 ```mermaid
@@ -424,39 +421,30 @@ sequenceDiagram
     autonumber
     participant Client as 客户端
     participant NoteSvc as hannote-note
-    participant Bloom as RedisBloom
-    participant ZSet as Redis ZSet
+    participant RBitmap as Redis Roaring Bitmap
+    participant ZSet as Redis ZSet（最近列表）
     participant PG as PostgreSQL
     participant MQ as RocketMQ
     participant Consumer as LikeUnlikeNoteConsumer
 
     Client->>NoteSvc: POST /note/like
     NoteSvc->>PG: 校验笔记存在（L1→L2→DB）
-    NoteSvc->>Bloom: BLOOM_CHECK_AND_ADD_SCRIPT
-    alt 返回 -1 NOT_EXIST
+    NoteSvc->>RBitmap: RBITMAP_CHECK_AND_ADD_SCRIPT（R64.GETBIT + R64.SETBIT）
+    alt 返回 -1 NOT_EXIST（位图缺失）
         NoteSvc->>PG: isNoteLikedInDb
         alt 已点赞
+            NoteSvc->>RBitmap: 异步全量回源重建位图
             NoteSvc-->>Client: NOTE-20008
         else 未点赞
-            NoteSvc->>Bloom: BLOOM_ADD_AND_EXPIRE
+            NoteSvc->>RBitmap: 全量回源历史点赞 + RBITMAP_ADD_AND_EXPIRE 置位当前
         end
-    else 返回 1 ALREADY
-        NoteSvc->>ZSet: score(zsetKey, noteId)
-        alt ZSet 命中
-            NoteSvc-->>Client: NOTE-20008
-        else ZSet 未命中
-            NoteSvc->>PG: isNoteLikedInDb
-            alt DB 已点赞
-                NoteSvc-->>Client: NOTE-20008
-            else DB 未点赞（布隆误判）
-                Note over NoteSvc: 继续
-            end
-        end
-    else 返回 0 SUCCESS
+    else 返回 1 ALREADY（精确命中已点赞）
+        NoteSvc-->>Client: NOTE-20008
+    else 返回 0 SUCCESS（置位成功）
         Note over NoteSvc: 继续
     end
 
-    NoteSvc->>ZSet: ZSET_CHECK_AND_UPDATE_SCRIPT(max=100)
+    NoteSvc->>ZSet: ZSET_CHECK_AND_UPDATE_SCRIPT(max=100，仅维护最近列表)
     alt ZSet 不存在
         NoteSvc->>PG: 查最近 100 条点赞
         NoteSvc->>ZSet: ZSET_BATCH_ADD_AND_EXPIRE
@@ -482,17 +470,18 @@ sequenceDiagram
 NoteController.unlikeNote
   └─ NoteServiceImpl.unlikeNote
        ├─ checkNoteExistAndGetCreatorId(noteId)
-       ├─ stringRedisTemplate.execute(BLOOM_EXIST_SCRIPT, [bloomKey], noteId)
-       │    ├─ -1 NOT_EXIST：asyncInitBloom + isNoteLikedInDb
-       │    │    └─ false 抛 NOTE-20009
-       │    ├─ 0 NOT_MARKED：抛 NOTE-20009
-       │    └─ 1 MARKED：继续（可能误判，DB 兜底）
+       ├─ stringRedisTemplate.execute(RBITMAP_CHECK_AND_REMOVE_SCRIPT, [rbitmapKey], noteId)
+       │    ├─ -1 NOT_EXIST（位图缺失）：isNoteLikedInDb
+       │    │    ├─ false → 抛 NOTE-20009
+       │    │    └─ true  → 异步「全量回源重建位图 → 再清当前位」保持一致，本次仍继续放行
+       │    ├─ 0 NOT_MARKED（精确命中未点赞）：直接抛 NOTE-20009
+       │    └─ 1 MARKED（原已置位，本次已清 0）：继续
        ├─ opsForZSet().remove(zsetKey, noteId)
        └─ sendLikeUnlikeMq(UNLIKE)                                → LikeUnlikeTopic:Unlike
 ```
 
 **要点**：
-- 布隆「未标记」（返回 0）是**绝对真负**，可直接抛错；布隆「已标记」（返回 1）可能是误判，落库 SQL `WHERE status=1` 兜底。
+- **一次 Lua 调用完成「校验 + 清位」**：`R64.GETBIT` 为 0 时精确判定「未点赞」直接拒绝（`NOTE-20009`），不像布隆过滤器那样需要靠下游 SQL 兜底误判；为 1 时原子清位并继续。
 - ZSET 移除是**尽力而为**：成员不存在时 `ZREM` 不报错，不阻塞后续 MQ 发送。
 
 ### 3.9 `POST /note/collect` / 3.10 `POST /note/uncollect` — 收藏
@@ -501,8 +490,8 @@ NoteController.unlikeNote
 
 | 项 | 点赞 | 收藏 |
 |---|---|---|
-| 布隆键 | `hannote:note:bloom:like:{userId}` | `hannote:note:bloom:collect:{userId}` |
-| ZSet 键 | `hannote:note:zset:like:{userId}` | `hannote:note:zset:collect:{userId}` |
+| Roaring Bitmap 键 | `hannote:note:rbitmap:like:{userId}` | `hannote:note:rbitmap:collect:{userId}` |
+| ZSet 键（最近列表，不参与判重） | `hannote:note:zset:like:{userId}` | `hannote:note:zset:collect:{userId}` |
 | ZSet 上限 | 100 | 300 |
 | DB 表 | `t_note_like` | `t_note_collection` |
 | MQ Topic | `LikeUnlikeTopic:Like/Unlike` | `CollectUnCollectTopic:Collect/UnCollect` |
@@ -510,7 +499,28 @@ NoteController.unlikeNote
 | 消费组 | `hannote_note_like_unlike_group` | `hannote_note_collect_uncollect_group` |
 | 计数 Topic（由 count 服务消费） | `CountNoteLikeTopic` | `CountNoteCollectTopic` |
 
-### 3.11 `POST /note/findPublishedById` — 校验笔记已发布（RPC）
+### 3.11 `POST /note/isLikedAndCollectedData` — 查询是否点赞/收藏
+
+**请求**：`FindNoteIsLikedAndCollectedReqVO`（`noteId`）
+
+**响应**：`Response<FindNoteIsLikedAndCollectedRspVO>`（`noteId`、`isLiked`、`isCollected`）
+
+**调用链**：
+```
+NoteController.isLikedAndCollectedData
+  └─ NoteServiceImpl.isLikedAndCollectedData
+       ├─ 未登录（LoginUserContextHolder.getUserId() 为空）→ 直接返回 isLiked=false, isCollected=false
+       └─ 已登录：
+            ├─ checkNoteIsLiked：RBITMAP_ONLY_CHECK_SCRIPT（只读 R64.GETBIT，不写入）
+            │    └─ -1 位图缺失 → 回源 DB isNoteLikedInDb，命中则异步重建位图
+            └─ checkNoteIsCollected：同上（Key 换成收藏位图）
+```
+
+**要点**：
+- 与 `likeNote`/`collectNote` 共用同一套 Roaring Bitmap Key，但只读不写（`rbitmap_only_check.lua`），不会误置位。
+- 供前端渲染笔记详情页的点赞/收藏按钮态使用；未登录用户不查缓存/DB，直接返回默认 `false`。
+
+### 3.12 `POST /note/findPublishedById` — 校验笔记已发布（RPC）
 
 **请求**：`FindPublishedNoteReqDTO`（`noteId`）
 
@@ -597,8 +607,8 @@ sequenceDiagram
     autonumber
     participant User as 用户
     participant NoteSvc as hannote-note
-    participant Bloom as RedisBloom
-    participant ZSet as Redis ZSet
+    participant RBitmap as Redis Roaring Bitmap
+    participant ZSet as Redis ZSet（最近列表）
     participant PG as PostgreSQL
     participant MQ as RocketMQ
     participant NoteConsumer as LikeUnlikeNoteConsumer
@@ -606,8 +616,8 @@ sequenceDiagram
 
     User->>NoteSvc: /note/like
     rect rgb(240, 248, 255)
-        Note over NoteSvc, ZSet: 三级判重
-        NoteSvc->>Bloom: BF.EXISTS / BF.ADD
+        Note over NoteSvc, ZSet: Roaring Bitmap 精确判重 + ZSet 维护最近列表
+        NoteSvc->>RBitmap: R64.GETBIT / R64.SETBIT
         NoteSvc->>ZSet: ZADD（淘汰最早 1 条）
     end
     NoteSvc->>MQ: asyncSendOrderly LikeUnlikeTopic:Like (hashKey=userId)
@@ -707,22 +717,23 @@ sequenceDiagram
 | Key | 类型 | TTL | 写入点 | 读取点 |
 |---|---|---|---|---|
 | `hannote:note:detail:{noteId}` | String（Jackson JSON，或哨兵 `"null"`） | 真实：`86400+rand(0..86400)` s；哨兵：`60+rand(0..60)` s | `findNoteDetail`（回填）；`DelayDeleteNoteRedisCacheConsumer` / 各变更接口（DEL） | `findNoteDetail`、`checkNoteExistAndGetCreatorId` |
-| `hannote:note:bloom:like:{userId}` | RedisBloom | `86400+rand(0..86400)` s | `likeNote`（`BLOOM_CHECK_AND_ADD`/`BLOOM_ADD_AND_EXPIRE`/`BLOOM_BATCH_ADD_AND_EXPIRE`） | `likeNote`、`unlikeNote` |
-| `hannote:note:bloom:collect:{userId}` | RedisBloom | 同上 | `collectNote` | `collectNote`、`unCollectNote` |
-| `hannote:note:zset:like:{userId}` | ZSet（score=时间戳，member=noteId，上限 100） | 随机 | `likeNote`（`ZSET_CHECK_AND_UPDATE`/`ZSET_BATCH_ADD_AND_EXPIRE`） | `likeNote`（`ZSCORE`） |
-| `hannote:note:zset:collect:{userId}` | ZSet（上限 300） | 随机 | `collectNote` | `collectNote` |
+| `hannote:note:rbitmap:like:{userId}` | Roaring Bitmap（`redis-roaring` 模块，`R64.SETBIT`/`R64.GETBIT`，bit 偏移量=noteId） | `86400+rand(0..86400)` s | `likeNote`（`RBITMAP_CHECK_AND_ADD`/`RBITMAP_ADD_AND_EXPIRE`/`RBITMAP_BATCH_ADD_AND_EXPIRE`） | `likeNote`、`unlikeNote`（`RBITMAP_CHECK_AND_REMOVE`）、`isLikedAndCollectedData`（`RBITMAP_ONLY_CHECK`，只读） |
+| `hannote:note:rbitmap:collect:{userId}` | 同上 | 同上 | `collectNote` | `collectNote`、`unCollectNote`、`isLikedAndCollectedData` |
+| `hannote:note:zset:like:{userId}` | ZSet（score=时间戳，member=noteId，上限 100，**仅维护最近点赞列表，不参与判重**） | 随机 | `likeNote`（`ZSET_CHECK_AND_UPDATE`/`ZSET_BATCH_ADD_AND_EXPIRE`） | — |
+| `hannote:note:zset:collect:{userId}` | ZSet（上限 300，同上仅供展示） | 随机 | `collectNote` | — |
 
 > **Lua 脚本专用 `StringRedisTemplate`**：避免 `RedisTemplate<String,Object>` 的 Jackson value 序列化污染脚本入参（与 `hannote-user-relation` 一致）。
-> Redis 服务需加载 **RedisBloom 模块**（`bf`），否则 Lua 脚本调用 `BF.ADD` / `BF.EXISTS` 会报 `unknown command`。
+> Redis 服务需加载 **`redis-roaring` 模块**（提供 `R64.*` 系列命令），否则 Lua 脚本调用 `R64.SETBIT` / `R64.GETBIT` 会报 `unknown command`。区别于布隆过滤器，`R64.GETBIT` 是**精确位测试**（无假阳性/假阴性），点赞/收藏判重不再需要 DB 兜底二次校验（位图缺失场景除外）。
 
 ### Lua 脚本清单（`src/main/resources/lua/`）
 
 | 文件 | 用途 |
 |---|---|
-| `bloom_check_and_add.lua` | 布隆存在性检查 + 添加；返回 -1/0/1 |
-| `bloom_exist.lua` | 布隆存在性只读查询；返回 -1/0/1 |
-| `bloom_add_and_expire.lua` | 单条布隆写入 + 设置 TTL |
-| `bloom_batch_add_and_expire.lua` | 批量布隆写入 + 设置 TTL（DB 回源时使用） |
+| `rbitmap_check_and_add.lua` | Roaring Bitmap 精确存在性检查 + 置位；返回 -1（缺失）/0（置位成功）/1（已置位） |
+| `rbitmap_check_and_remove.lua` | Roaring Bitmap 精确存在性检查 + 清位；返回 -1（缺失）/0（未置位）/1（原已置位，已清 0） |
+| `rbitmap_only_check.lua` | Roaring Bitmap 只读查询（不写入），供 `isLikedAndCollectedData` 使用；返回 -1/0/1 |
+| `rbitmap_add_and_expire.lua` | 单条位图置位 + 设置 TTL |
+| `rbitmap_batch_add_and_expire.lua` | 批量位图置位 + 设置 TTL（DB 回源时使用） |
 | `zset_check_and_update.lua` | ZSet 容量校验 + ZPOPMIN 淘汰 + ZADD |
 | `zset_batch_add_and_expire.lua` | 批量 ZADD + EXPIRE（DB 回源时使用） |
 
@@ -798,8 +809,8 @@ WHERE t_note_like.status <> EXCLUDED.status
 | `TOPIC_NOT_FOUND` | `NOTE-20005` | 话题不存在 | `topicId` 对应 `t_topic` 行不存在 |
 | `NOTE_CANT_OPERATE` | `NOTE-20006` | 无法操作他人的笔记 | update/delete/top 归属校验失败 |
 | `NOTE_CANT_VISIBLE_ONLY_ME` | `NOTE-20007` | 此笔记无法修改为仅自己可见 | visibleOnlyMe 变更 0 行 |
-| `NOTE_ALREADY_LIKED` | `NOTE-20008` | 您已经点赞过该笔记 | 布隆/ZSet/DB 任一命中 |
-| `NOTE_NOT_LIKED` | `NOTE-20009` | 您未点赞该篇笔记，无法取消点赞 | 布隆真负 / DB 未命中 |
+| `NOTE_ALREADY_LIKED` | `NOTE-20008` | 您已经点赞过该笔记 | Roaring Bitmap 精确命中 / 位图缺失时 DB 命中 |
+| `NOTE_NOT_LIKED` | `NOTE-20009` | 您未点赞该篇笔记，无法取消点赞 | Roaring Bitmap 精确未命中 / 位图缺失时 DB 未命中 |
 | `NOTE_ALREADY_COLLECTED` | `NOTE-20010` | 您已经收藏过该笔记 | 同上（收藏侧） |
 | `NOTE_NOT_COLLECTED` | `NOTE-20011` | 您未收藏该篇笔记，无法取消收藏 | 同上（收藏侧） |
 
@@ -809,7 +820,7 @@ WHERE t_note_like.status <> EXCLUDED.status
 
 | 类 | 说明 |
 |---|---|
-| `NoteController` | 11 个 POST 端点，统一 `@RequestMapping("/note")` |
+| `NoteController` | 12 个 POST 端点，统一 `@RequestMapping("/note")` |
 | `NoteServiceImpl` | 核心业务实现，约 1100 行；所有缓存/MQ/RPC 逻辑集中于此 |
 | `LikeUnlikeNoteConsumer` / `CollectUnCollectNoteConsumer` | 顺序消费者，原生 `rocketmq-client`（非 starter），Guava 令牌桶削峰 |
 | `DeleteNoteLocalCacheConsumer` | 广播消费者，`MessageModel.BROADCASTING`，删各实例 L1 |
@@ -866,7 +877,7 @@ rocketmq:
 ## 13. 设计备注
 
 - **延迟双删 + 广播 L1**：是应对多实例部署下缓存一致性的标准做法；广播 MQ 使用 `MessageModel.BROADCASTING`，保证每个实例都能收到失效事件。
-- **布隆过滤器只判存在、不判删除**：RedisBloom 不支持 `BF.DEL`；取消点赞/收藏对布隆「已标记」的笔记幂等放行，由 SQL `WHERE status=1` 兜底，属已知取舍。
+- **Roaring Bitmap 替代布隆过滤器**（点赞/收藏判重专用）：`redis-roaring` 模块的 `R64.SETBIT`/`R64.GETBIT` 是**精确位测试**，无假阳性；相比原布隆方案，`R64.SETBIT(key, id, 0)` 天然支持清位，取消点赞/收藏无需再靠「幂等放行 + SQL `WHERE status=1` 兜底」这种妥协设计，直接精确判定「未点赞/未收藏」并拒绝（`NOTE-20009`/`NOTE-20011`）。位图仅在缺失（未初始化或已过期）时才回源 DB 兜底，并异步全量重建。
 - **顺序 MQ + `(userId, noteId)` 合并**：`asyncSendOrderly` 以 `userId` 为 hashKey，保证同一用户的事件顺序到达；消费端 `InteractionMergeSupport.mergeByLastOp` 取最后动作作为最终状态，避免偶数次取消/点赞导致的状态翻转。
 - **事务内 RPC**：`updateNote` 在 PG 事务中调用 `KeyValueRpcService`，是已知风险点（RPC 超时可能引发长事务）；后续可将 KV 写入移出事务或改为异步补偿。
 - **计数解耦**：本服务**不直接维护计数**，所有计数变更通过 MQ 通知 `hannote-count`；`hannote-data-align` 定期全量对齐漂移。

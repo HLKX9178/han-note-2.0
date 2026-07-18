@@ -405,3 +405,22 @@ userId: {{userId}}
         client.assert(response.body.errorCode === "NOTE-20011", "预期 NOTE-20011，实际 " + response.body.errorCode);
     });
 %}
+
+### 23. 查询当前用户是否点赞/收藏某笔记 —— 环境 note-direct
+# 点赞/收藏判重已由布隆过滤器改为 Roaring Bitmap（R64.GETBIT，精确判断，无需 DB 二次校验）
+POST {{noteHost}}{{noteBasePath}}/note/isLikedAndCollectedData
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "noteId": {{noteId}}
+}
+
+> {%
+    client.test("查询点赞/收藏状态成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        client.assert(response.body.data && response.body.data.hasOwnProperty("isLiked"), "返参缺 isLiked 字段");
+        client.assert(response.body.data && response.body.data.hasOwnProperty("isCollected"), "返参缺 isCollected 字段");
+    });
+%}

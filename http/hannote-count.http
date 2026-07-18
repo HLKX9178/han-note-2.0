@@ -177,3 +177,24 @@ Content-Type: application/json
         client.assert(response.body.data.commentTotal >= 0, "commentTotal 不应为负数");
     });
 %}
+
+###############################################################################
+# 用例 7：内网查询用户维度计数（供 hannote-user /user/profile 拼装主页数据）
+###############################################################################
+
+### 7. 查询用户维度计数（关注数/粉丝数/发布数/获赞数/获藏数）
+POST {{countHost}}/count/user/data
+Content-Type: application/json
+
+{
+  "userId": {{userId}}
+}
+
+> {%
+    client.test("查询用户计数成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, JSON.stringify(response.body));
+        client.assert(response.body.data.fansTotal >= 0, "fansTotal 不应为负数");
+        client.assert(response.body.data.followingTotal >= 0, "followingTotal 不应为负数");
+    });
+%}
