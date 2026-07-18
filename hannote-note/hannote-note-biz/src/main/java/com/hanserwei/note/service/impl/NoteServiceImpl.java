@@ -369,14 +369,15 @@ public class NoteServiceImpl implements NoteService {
         String rbitmapKey = RedisKeyConstants.buildRBitmapNoteLikeKey(loginUserId);
         Object[] args = noteIds.stream().map(String::valueOf).toArray();
 
-        List<Long> results = stringRedisTemplate.execute(RBITMAP_BATCH_GET_NOTE_LIKED_SCRIPT,
+        // Lua 数值返回在不同 Spring 版本可能是 Long / Integer，用 List<?> + Number 取值避免隐式 checkcast 与类型误判
+        List<?> results = stringRedisTemplate.execute(RBITMAP_BATCH_GET_NOTE_LIKED_SCRIPT,
                 Collections.singletonList(rbitmapKey), args);
         if (results == null || results.isEmpty()) {
             return;
         }
 
         // 位图不存在（首位 -1）：回源 DB 判定，并异步全量重建位图
-        if (Objects.equals(results.get(0), NoteRBitmapCheckResultEnum.NOT_EXIST.getCode())) {
+        if (toLongValue(results.get(0)) == NoteRBitmapCheckResultEnum.NOT_EXIST.getCode()) {
             List<NoteLikeDO> likedList = noteLikeDOMapper.selectByUserIdAndNoteIds(loginUserId, noteIds);
             if (likedList != null && !likedList.isEmpty()) {
                 Set<Long> likedNoteIds = likedList.stream().map(NoteLikeDO::getNoteId).collect(Collectors.toSet());
@@ -388,9 +389,17 @@ public class NoteServiceImpl implements NoteService {
         }
 
         // 位图存在：按下标解析（noteVOS 与 noteIds 顺序一致，与 results 对齐）
-        for (int i = 0; i < noteVOS.size(); i++) {
-            noteVOS.get(i).setIsLiked(Objects.equals(results.get(i), 1L));
+        int size = Math.min(noteVOS.size(), results.size());
+        for (int i = 0; i < size; i++) {
+            noteVOS.get(i).setIsLiked(toLongValue(results.get(i)) == 1L);
         }
+    }
+
+    /**
+     * 把 Redis/Lua 返回的数值对象统一转 long（兼容 Long / Integer，非数值返回 0）.
+     */
+    private static long toLongValue(Object value) {
+        return value instanceof Number number ? number.longValue() : 0L;
     }
 
     /**
