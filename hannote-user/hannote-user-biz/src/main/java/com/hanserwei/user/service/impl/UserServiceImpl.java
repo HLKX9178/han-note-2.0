@@ -596,7 +596,6 @@ public class UserServiceImpl implements UserService {
             FindUserProfileRspVO localCache = PROFILE_LOCAL_CACHE.getIfPresent(userId);
             if (Objects.nonNull(localCache)) {
                 log.info("==> 用户主页信息命中本地缓存, userId: {}", userId);
-                authorGetActualCountData(userId, localCache);
                 return Response.success(localCache);
             }
         }
@@ -627,11 +626,16 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         // 4. RPC 聚合计数
-        rpcCountServiceAndSetData(userId, vo);
+        boolean countsOk = rpcCountServiceAndSetData(userId, vo);
 
-        // 5. 异步回写两级缓存
-        syncUserProfile2Redis(profileRedisKey, vo);
-        syncUserProfile2LocalCache(userId, vo);
+        // 5. 计数服务可用才回写两级缓存；不可用则计数以 0 兜底且跳过缓存回写，下次请求自愈重试
+        if (countsOk) {
+            syncUserProfile2Redis(profileRedisKey, vo);
+            syncUserProfile2LocalCache(userId, vo);
+        } else {
+            setDefaultZeroCounts(vo);
+            log.warn("==> 计数服务不可用, 用户主页计数以 0 兜底且跳过缓存回写, userId: {}", userId);
+        }
 
         return Response.success(vo);
     }
@@ -664,8 +668,9 @@ public class UserServiceImpl implements UserService {
      *
      * @param userId 用户 ID
      * @param vo     主页信息返参（原地填充计数字段）
+     * @return 是否成功获取并设置计数（RPC 结果为 null 时返回 false，不改动 vo 任何字段）
      */
-    private void rpcCountServiceAndSetData(Long userId, FindUserProfileRspVO vo) {
+    private boolean rpcCountServiceAndSetData(Long userId, FindUserProfileRspVO vo) {
         FindUserCountRspDTO count = countRpcService.findUserCountById(userId);
         if (Objects.nonNull(count)) {
             long likeTotal = Objects.isNull(count.getLikeTotal()) ? 0 : count.getLikeTotal();
@@ -676,7 +681,26 @@ public class UserServiceImpl implements UserService {
             vo.setLikeTotal(NumberUtils.formatNumberString(likeTotal));
             vo.setCollectTotal(NumberUtils.formatNumberString(collectTotal));
             vo.setLikeAndCollectTotal(NumberUtils.formatNumberString(likeTotal + collectTotal));
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * 计数服务不可用时的兜底：将主页 VO 的 6 个计数字段全部置为格式化后的 "0".
+     *
+     * <p>保证返参计数字段非 null（契约要求），同时不写入任何缓存，便于下次请求重试自愈。
+     *
+     * @param vo 主页信息返参（原地填充计数字段）
+     */
+    private void setDefaultZeroCounts(FindUserProfileRspVO vo) {
+        String zero = NumberUtils.formatNumberString(0);
+        vo.setFansTotal(zero);
+        vo.setFollowingTotal(zero);
+        vo.setNoteTotal(zero);
+        vo.setLikeTotal(zero);
+        vo.setCollectTotal(zero);
+        vo.setLikeAndCollectTotal(zero);
     }
 
     /**

@@ -861,24 +861,6 @@ public class NoteServiceImpl implements NoteService {
     }
 
     /**
-     * 异步重建用户点赞 ZSET（仅当其不存在时），供误判但 DB 有记录的场景调用.
-     */
-    private void asyncInitNoteLikeZSet(Long userId, String zsetKey) {
-        noteTaskExecutor.execute(() -> {
-            if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(zsetKey))) {
-                return;
-            }
-            List<NoteLikeDO> recent = selectRecentLikes(userId);
-            if (recent == null || recent.isEmpty()) {
-                return;
-            }
-            stringRedisTemplate.execute(ZSET_BATCH_ADD_AND_EXPIRE_SCRIPT,
-                    Collections.singletonList(zsetKey),
-                    buildNoteLikeZSetLuaArgs(recent, randomRBitmapExpireSeconds()));
-        });
-    }
-
-    /**
      * 查询用户最近点赞的笔记（最多 {@link #NOTE_LIKE_ZSET_MAX_SIZE} 条，按点赞时间倒序）.
      */
     private List<NoteLikeDO> selectRecentLikes(Long userId) {
@@ -1178,24 +1160,6 @@ public class NoteServiceImpl implements NoteService {
             stringRedisTemplate.execute(ZSET_BATCH_ADD_AND_EXPIRE_SCRIPT,
                     Collections.singletonList(zsetKey), args);
         }
-    }
-
-    /**
-     * 异步重建用户收藏 ZSET（仅当其不存在时）.
-     */
-    private void asyncInitNoteCollectZSet(Long userId, String zsetKey) {
-        noteTaskExecutor.execute(() -> {
-            if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(zsetKey))) {
-                return;
-            }
-            List<NoteCollectionDO> recent = selectRecentCollections(userId);
-            if (recent == null || recent.isEmpty()) {
-                return;
-            }
-            stringRedisTemplate.execute(ZSET_BATCH_ADD_AND_EXPIRE_SCRIPT,
-                    Collections.singletonList(zsetKey),
-                    buildNoteCollectZSetLuaArgs(recent, randomRBitmapExpireSeconds()));
-        });
     }
 
     /**
