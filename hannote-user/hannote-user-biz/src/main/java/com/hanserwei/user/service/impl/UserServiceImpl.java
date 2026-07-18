@@ -112,8 +112,15 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Response<?> updateUserInfo(UpdateUserInfoReqVO updateUserInfoReqVO) {
+        // 权限校验：仅号主本人可修改
+        Long userId = updateUserInfoReqVO.getUserId();
+        Long loginUserId = LoginUserContextHolder.getUserId();
+        if (!Objects.equals(userId, loginUserId)) {
+            throw new BizException(ResponseCodeEnum.CANT_UPDATE_OTHER_USER_PROFILE);
+        }
+
         UserDO userDO = new UserDO();
-        userDO.setId(LoginUserContextHolder.getUserId());
+        userDO.setId(userId);
         boolean needUpdate = false;
 
         // 头像
@@ -184,8 +191,14 @@ public class UserServiceImpl implements UserService {
         }
 
         if (needUpdate) {
+            // 先删 Redis 缓存（用户信息 + 主页信息）
+            deleteUserRedisCache(userId);
+
             userDO.setUpdateTime(LocalDateTime.now());
             userDOMapper.updateById(userDO);
+
+            // 延迟双删：约 1s 后二次删除，兜底并发回填脏数据
+            sendDelayDeleteUserRedisCacheMq(userId);
 
             // 通知搜索服务重建用户 ES 文档；昵称 / 头像变更时连带重建该用户全部笔记文档
             // （笔记索引冗余了 creator_nickname / creator_avatar）
@@ -196,6 +209,35 @@ public class UserServiceImpl implements UserService {
             sendUserSyncEsMq(userDO.getId(), tag);
         }
         return Response.success();
+    }
+
+    /**
+     * 删除 Redis 中的用户信息缓存与主页信息缓存.
+     *
+     * @param userId 用户 ID
+     */
+    private void deleteUserRedisCache(Long userId) {
+        redisTemplate.delete(java.util.Arrays.asList(
+                RedisKeyConstants.buildUserInfoKey(userId),
+                RedisKeyConstants.buildUserProfileKey(userId)));
+    }
+
+    /**
+     * 异步发送延时消息，约 1s 后二次删除 Redis 用户缓存.
+     *
+     * @param userId 用户 ID
+     */
+    private void sendDelayDeleteUserRedisCacheMq(Long userId) {
+        cacheWriteExecutor.execute(() -> {
+            try {
+                rocketMQTemplate.syncSendDelayTimeSeconds(
+                        MQConstants.TOPIC_DELAY_DELETE_USER_REDIS_CACHE,
+                        String.valueOf(userId), 1);
+                log.info("==> MQ：延时删除 Redis 用户缓存消息发送成功, userId: {}", userId);
+            } catch (Exception e) {
+                log.error("==> MQ：延时删除 Redis 用户缓存消息发送失败, userId: {}", userId, e);
+            }
+        });
     }
 
     @Override
@@ -549,11 +591,13 @@ public class UserServiceImpl implements UserService {
             userId = LoginUserContextHolder.getUserId();
         }
 
-        // 1. 优先查本地缓存
-        FindUserProfileRspVO localCache = PROFILE_LOCAL_CACHE.getIfPresent(userId);
-        if (Objects.nonNull(localCache)) {
-            log.info("==> 用户主页信息命中本地缓存, userId: {}", userId);
-            return Response.success(localCache);
+        // 1. 非本人才查本地缓存；本人查看跳过本地缓存，保证改资料后自己立即可见
+        if (!Objects.equals(userId, LoginUserContextHolder.getUserId())) {
+            FindUserProfileRspVO localCache = PROFILE_LOCAL_CACHE.getIfPresent(userId);
+            if (Objects.nonNull(localCache)) {
+                log.info("==> 用户主页信息命中本地缓存, userId: {}", userId);
+                return Response.success(localCache);
+            }
         }
 
         // 2. 再查 Redis 缓存

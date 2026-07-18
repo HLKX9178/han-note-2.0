@@ -23,6 +23,10 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class UpdateUserInfoReqVO {
 
+    /** 要修改的用户 ID（须为登录用户本人） */
+    @jakarta.validation.constraints.NotNull(message = "用户 ID 不能为空")
+    private Long userId;
+
     /** 头像 */
     private MultipartFile avatar;
 
