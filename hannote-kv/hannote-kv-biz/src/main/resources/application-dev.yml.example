@@ -14,3 +14,10 @@ spring:
     port: 9042
     local-datacenter: datacenter1 # DataStax 驱动 4.x 必填，需与 Scylla 数据中心名一致
     schema-action: none           # 不自动建表，keyspace/表由 DDL 预建
+
+# RocketMQ（消费发布笔记事务消息，把正文写入 ScyllaDB；2.3.x 原生自动装配，无需 @Import）
+rocketmq:
+  name-server: <rocketmq-name-server>     # 如 127.0.0.1:9876
+  consumer:
+    group: hannote_group
+    pull-batch-size: 5                    # 每次拉取的最大消息数
