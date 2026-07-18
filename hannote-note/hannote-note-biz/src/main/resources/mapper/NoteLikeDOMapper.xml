@@ -32,4 +32,16 @@
         WHERE t_note_like.status <![CDATA[ <> ]]> EXCLUDED.status
     </insert>
 
+    <!-- 查询某用户对一批笔记的有效点赞记录（status = 1），供已发布笔记列表批量判定 isLiked -->
+    <select id="selectByUserIdAndNoteIds" resultType="com.hanserwei.note.domain.dataobject.NoteLikeDO">
+        SELECT note_id, user_id
+        FROM t_note_like
+        WHERE user_id = #{userId}
+          AND status = 1
+          AND note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </select>
+
 </mapper>

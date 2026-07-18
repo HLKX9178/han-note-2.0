@@ -10,6 +10,8 @@ import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
 import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedReqVO;
 import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedRspVO;
+import com.hanserwei.note.model.vo.FindPublishedNoteListReqVO;
+import com.hanserwei.note.model.vo.FindPublishedNoteListRspVO;
 import com.hanserwei.note.model.vo.LikeNoteReqVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
 import com.hanserwei.note.model.vo.TopNoteReqVO;
@@ -170,6 +172,22 @@ public class NoteController {
     @ApiOperationLog(description = "取消收藏笔记")
     public Response<?> unCollectNote(@Validated @RequestBody UnCollectNoteReqVO unCollectNoteReqVO) {
         return noteService.unCollectNote(unCollectNoteReqVO);
+    }
+
+    /**
+     * 个人主页 - 已发布笔记列表（游标分页）.
+     *
+     * <p>经网关白名单放行，匿名可查看他人主页；登录后返回每篇笔记的 isLiked，
+     * 博主本人查看时点赞量实时。
+     *
+     * @param findPublishedNoteListReqVO 查询入参（目标博主 userId + 游标 cursor）
+     * @return 笔记卡片列表 + 下一页游标
+     */
+    @PostMapping("/published/list")
+    @ApiOperationLog(description = "个人主页-已发布笔记列表")
+    public Response<FindPublishedNoteListRspVO> findPublishedNoteList(
+            @Validated @RequestBody FindPublishedNoteListReqVO findPublishedNoteListReqVO) {
+        return noteService.findPublishedNoteList(findPublishedNoteListReqVO);
     }
 
     /**

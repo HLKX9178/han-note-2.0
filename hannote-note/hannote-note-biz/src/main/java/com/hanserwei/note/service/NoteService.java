@@ -9,6 +9,8 @@ import com.hanserwei.note.model.vo.FindNoteDetailReqVO;
 import com.hanserwei.note.model.vo.FindNoteDetailRspVO;
 import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedReqVO;
 import com.hanserwei.note.model.vo.FindNoteIsLikedAndCollectedRspVO;
+import com.hanserwei.note.model.vo.FindPublishedNoteListReqVO;
+import com.hanserwei.note.model.vo.FindPublishedNoteListRspVO;
 import com.hanserwei.note.model.vo.LikeNoteReqVO;
 import com.hanserwei.note.model.vo.PublishNoteReqVO;
 import com.hanserwei.note.model.vo.TopNoteReqVO;
@@ -131,4 +133,15 @@ public interface NoteService {
      */
     Response<FindNoteIsLikedAndCollectedRspVO> isLikedAndCollectedData(
             FindNoteIsLikedAndCollectedReqVO findNoteIsLikedAndCollectedReqVO);
+
+    /**
+     * 个人主页 - 游标分页查询博主已发布的笔记列表.
+     *
+     * <p>第一页优先查 Redis 缓存；并发调用用户/计数服务拼装发布者信息与点赞量；
+     * 登录用户返回每篇笔记的 isLiked；博主本人查看时点赞量保持实时。
+     *
+     * @param findPublishedNoteListReqVO 查询入参（目标博主 userId + 游标 cursor）
+     * @return 笔记卡片列表 + 下一页游标
+     */
+    Response<FindPublishedNoteListRspVO> findPublishedNoteList(FindPublishedNoteListReqVO findPublishedNoteListReqVO);
 }

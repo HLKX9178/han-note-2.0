@@ -38,4 +38,14 @@ public interface NoteLikeDOMapper extends BaseMapper<NoteLikeDO> {
      * @return 实际影响行数
      */
     int batchInsertOrUpdate(@Param("list") List<NoteLikeDO> list);
+
+    /**
+     * 查询某用户对一批笔记的有效点赞记录（status = 1）.
+     *
+     * @param userId  用户 ID
+     * @param noteIds 笔记 ID 集合
+     * @return 命中的点赞记录（仅含 note_id / user_id）
+     */
+    List<NoteLikeDO> selectByUserIdAndNoteIds(@Param("userId") Long userId,
+                                              @Param("noteIds") List<Long> noteIds);
 }

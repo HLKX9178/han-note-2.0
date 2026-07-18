@@ -18,4 +18,18 @@
           AND status = 1
     </select>
 
+    <!-- 游标分页查询博主已发布笔记：公开(visible=0) + 正常展示(status=1)，按 ID 降序，每页 20 条 -->
+    <select id="selectPublishedNoteListByUserIdAndCursor" resultType="com.hanserwei.note.domain.dataobject.NoteDO">
+        SELECT id, title, creator_id, type, img_uris, video_uri
+        FROM t_note
+        WHERE creator_id = #{creatorId}
+          AND visible = 0
+          AND status = 1
+        <if test="cursor != null">
+            <![CDATA[ AND id < #{cursor} ]]>
+        </if>
+        ORDER BY id DESC
+        LIMIT 20
+    </select>
+
 </mapper>

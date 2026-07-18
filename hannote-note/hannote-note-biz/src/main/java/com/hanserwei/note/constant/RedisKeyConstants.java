@@ -30,6 +30,21 @@ public final class RedisKeyConstants {
         return NOTE_DETAIL_KEY_PREFIX + noteId;
     }
 
+    /**
+     * 个人主页已发布笔记列表 Key 前缀（String 结构，缓存首页 JSON）
+     */
+    public static final String PUBLISHED_NOTE_LIST_KEY_PREFIX = "hannote:note:published:list:";
+
+    /**
+     * 构建个人主页已发布笔记列表 Key.
+     *
+     * @param userId 博主用户 ID
+     * @return hannote:note:published:list:{userId}
+     */
+    public static String buildPublishedNoteListKey(Long userId) {
+        return PUBLISHED_NOTE_LIST_KEY_PREFIX + userId;
+    }
+
     /** 用户笔记点赞 Roaring Bitmap Key 前缀 */
     public static final String RBITMAP_NOTE_LIKE_KEY_PREFIX = "hannote:note:rbitmap:like:";
 
