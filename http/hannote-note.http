@@ -424,3 +424,50 @@ userId: {{userId}}
         client.assert(response.body.data && response.body.data.hasOwnProperty("isCollected"), "返参缺 isCollected 字段");
     });
 %}
+
+###############################################################################
+# 用例：个人主页 - 已发布笔记列表（游标分页 + 首页 Redis 缓存 + 批量 isLiked）
+#   - ��第一页 cursor 传 null；用返参 nextCursor 翻下一页。
+#   - 网关白名单放行（匿名可查看他人主页）；登录后才有 isLiked 与本人实时点赞量。
+#   - 前置：note(8085)/user(8082)/count(8087) 均已启动；{{userId}} 为目标博主。
+###############################################################################
+
+### 查询已发布笔记列表 - 第一页（cursor 为 null）
+POST {{noteHost}}{{noteBasePath}}/note/published/list
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "userId": {{userId}},
+  "cursor": null
+}
+
+> {%
+    client.test("首页查询成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+        if (response.body.data && response.body.data.notes && response.body.data.notes.length > 0) {
+            var first = response.body.data.notes[0];
+            client.assert(first.hasOwnProperty("isLiked"), "笔记卡片缺 isLiked 字段");
+            client.assert(first.hasOwnProperty("likeTotal"), "笔记卡片缺 likeTotal 字段");
+            client.global.set("nextCursor", response.body.data.nextCursor);
+        }
+    });
+%}
+
+### 查询已发布笔记列表 - 下一页（用上一次返回的 nextCursor）
+POST {{noteHost}}{{noteBasePath}}/note/published/list
+Content-Type: application/json
+userId: {{userId}}
+
+{
+  "userId": {{userId}},
+  "cursor": {{nextCursor}}
+}
+
+> {%
+    client.test("翻页查询成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, "success 非 true：" + JSON.stringify(response.body));
+    });
+%}

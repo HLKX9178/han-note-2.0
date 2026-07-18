@@ -198,3 +198,41 @@ Content-Type: application/json
         client.assert(response.body.data.followingTotal >= 0, "followingTotal 不应为负数");
     });
 %}
+
+###############################################################################
+# 用例 8：内网批量查询笔记维度计数（Redis Hash Pipeline → PG 回源 → 回写，��
+#   供 hannote-note 已发布笔记列表批量拼装点赞量。noteIds 数量须 1~20。
+###############################################################################
+
+### 8. 批量查询笔记点赞/收藏/评论总数
+POST {{countHost}}/count/notes/data
+Content-Type: application/json
+
+{
+  "noteIds": [{{noteId}}]
+}
+
+> {%
+    client.test("批量查询笔记计数成功", function () {
+        client.assert(response.status === 200, "HTTP 状态非 200");
+        client.assert(response.body.success === true, JSON.stringify(response.body));
+        client.assert(Array.isArray(response.body.data), "data 应为数组");
+        if (response.body.data.length > 0) {
+            client.assert(response.body.data[0].likeTotal >= 0, "likeTotal 不应为负数");
+        }
+    });
+%}
+
+### 8b. 批量查询 - 空数组应校验失败（@Size min=1）
+POST {{countHost}}/count/notes/data
+Content-Type: application/json
+
+{
+  "noteIds": []
+}
+
+> {%
+    client.test("空集合参数校验失败", function () {
+        client.assert(response.body.success === false, "预期 success=false");
+    });
+%}
