@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hanserwei.count.domain.dataobject.NoteCountDO;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * 笔记计数表 Mapper.
  *
@@ -39,4 +41,12 @@ public interface NoteCountDOMapper extends BaseMapper<NoteCountDO> {
      * @return 影响行数
      */
     int insertOrUpdateCommentTotalByNoteId(@Param("count") Integer count, @Param("noteId") Long noteId);
+
+    /**
+     * 根据笔记 ID 集合批量查询笔记计数.
+     *
+     * @param noteIds 笔记 ID 集合
+     * @return 命中的笔记计数集合（无记录的笔记 ID 不返回）
+     */
+    List<NoteCountDO> selectByNoteIds(@Param("noteIds") List<Long> noteIds);
 }

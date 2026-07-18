@@ -1,6 +1,7 @@
 package com.hanserwei.count.controller;
 
 import com.hanserwei.count.api.dto.req.FindNoteCountReqDTO;
+import com.hanserwei.count.api.dto.req.FindNoteCountsByIdsReqDTO;
 import com.hanserwei.count.api.dto.req.FindUserCountReqDTO;
 import com.hanserwei.count.api.dto.resp.FindNoteCountRspDTO;
 import com.hanserwei.count.api.dto.resp.FindUserCountRspDTO;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 计数服务内网查询控制器.
@@ -36,6 +39,18 @@ public class CountController {
     public Response<FindNoteCountRspDTO> findNoteCountById(
             @Validated @RequestBody FindNoteCountReqDTO request) {
         return countQueryService.findNoteCountById(request);
+    }
+
+    /**
+     * 批量查询笔记维度计数.
+     *
+     * @param request 查询入参（笔记 ID 集合）
+     * @return 各笔记的计数集合
+     */
+    @PostMapping("/notes/data")
+    public Response<List<FindNoteCountRspDTO>> findNotesCountData(
+            @Validated @RequestBody FindNoteCountsByIdsReqDTO request) {
+        return countQueryService.findNotesCountData(request);
     }
 
     /**

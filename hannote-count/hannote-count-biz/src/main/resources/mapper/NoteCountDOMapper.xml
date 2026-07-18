@@ -26,4 +26,14 @@
         DO UPDATE SET comment_total = GREATEST(0, t_note_count.comment_total + #{count})
     </insert>
 
+    <!-- 根据笔记 ID 集合批量查询计数 -->
+    <select id="selectByNoteIds" resultType="com.hanserwei.count.domain.dataobject.NoteCountDO">
+        SELECT note_id, like_total, collect_total, comment_total
+        FROM t_note_count
+        WHERE note_id IN
+        <foreach collection="noteIds" item="noteId" open="(" separator="," close=")">
+            #{noteId}
+        </foreach>
+    </select>
+
 </mapper>
