@@ -57,3 +57,7 @@ skills-lock.json
 
 ### Local frontend API test console (intentionally not versioned) ###
 /hannote-test-console/
+
+### AI agent instructions (local only) ###
+AGENTS.md
+CLAUDE.md
