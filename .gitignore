@@ -59,5 +59,6 @@ skills-lock.json
 /hannote-test-console/
 
 ### AI agent instructions (local only) ###
+AGENT.md
 AGENTS.md
 CLAUDE.md
