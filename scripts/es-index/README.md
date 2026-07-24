@@ -1,7 +1,6 @@
 # 搜索服务 · ES 索引构建脚本
 
 一次性开发工具，用于构建搜索服务所需的 Elasticsearch 索引（`note` 笔记、`user` 用户）。
-��
 
 课程用 `logstash-input-jdbc` 做全量构建，跨库配置繁琐。本项目 `t_note` / `t_user` /
 `t_note_count` / `t_user_count` **同在一个 PostgreSQL 库**（`hannote`），一条 JOIN SQL
