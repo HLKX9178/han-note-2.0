@@ -29,7 +29,6 @@
 hannote/
 ├── pom.xml                            # 根 POM (多模块聚合)
 ├── docs/
-│   ├── frontend-api.md                # 前端 API 对接文档
 │   └── sql/                           # 数据库 DDL 脚本 (21 个)
 ├── http/                              # IntelliJ HTTP Client 测试用例
 ├── scripts/es-index/                  # ES 索引构建脚本
@@ -80,8 +79,6 @@ Client → hannote-gateway (8000) ──→ hannote-auth (8080)
 | `/note/**` | hannote-note | 笔记发布/点赞/收藏 |
 | `/relation/**` | hannote-user-relation | 关注/取关 |
 | `/comment/**` | hannote-comment | 评论互动 |
-
-详细接口文档见 `docs/frontend-api.md`。
 
 ## 快速开始
 
@@ -137,8 +134,20 @@ cd scripts/es-index
 - **顺序消费**: RocketMQ `asyncSendOrderly` 按 userId hashKey 保证同一用户事件有序
 - **数据对齐**: PowerJob MapReduce 每日凌晨对齐计数漂移
 
-## 子模块设计文档
+## 模块文档索引
 
-- [认证服务设计](hannote-auth/DESIGN.md)
-- [用户服务设计](hannote-user/DESIGN.md)
-- [笔记服务设计](hannote-note/hannote-note-biz/DESIGN.md)
+| 模块 | README | 详细设计 |
+|------|--------|----------|
+| hannote-framework（含 4 个公共 starter） | [README](hannote-framework/README.md) | [DESIGN](hannote-framework/DESIGN.md) |
+| hannote-gateway 网关 | [README](hannote-gateway/README.md) | [DESIGN](hannote-gateway/DESIGN.md) |
+| hannote-auth 认证 | [README](hannote-auth/README.md) | [DESIGN](hannote-auth/DESIGN.md) |
+| hannote-user 用户 | [README](hannote-user/README.md) | [DESIGN](hannote-user/DESIGN.md) |
+| hannote-oss 对象存储 | [README](hannote-oss/README.md) | [DESIGN](hannote-oss/DESIGN.md) |
+| hannote-note 笔记 | [README](hannote-note/README.md) | [DESIGN](hannote-note/hannote-note-biz/DESIGN.md) |
+| hannote-comment 评论 | [README](hannote-comment/README.md) | [DESIGN](hannote-comment/DESIGN.md) |
+| hannote-user-relation 用户关系 | [README](hannote-user-relation/README.md) | [DESIGN](hannote-user-relation/DESIGN.md) |
+| hannote-count 计数 | [README](hannote-count/README.md) | [DESIGN](hannote-count/DESIGN.md) |
+| hannote-search 搜索 | [README](hannote-search/README.md) | [DESIGN](hannote-search/DESIGN.md) |
+| hannote-kv KV 存储 | [README](hannote-kv/README.md) | [DESIGN](hannote-kv/DESIGN.md) |
+| hannote-distributed-id-generator 分布式 ID | [README](hannote-distributed-id-generator/README.md) | [DESIGN](hannote-distributed-id-generator/DESIGN.md) |
+| hannote-data-align 数据对齐 | [README](hannote-data-align/README.md) | [DESIGN](hannote-data-align/DESIGN.md) |
